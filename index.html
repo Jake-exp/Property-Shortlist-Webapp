@@ -190,6 +190,20 @@ dialog::backdrop { background: var(--shade); }
 .sheet-foot .right { display: flex; gap: 8px; margin-left: auto; }
 .msg { font-size: 14px; color: var(--bad-ink); flex-basis: 100%; margin: 0; }
 .msg:empty { display: none; }
+.msg.info { color: var(--muted); }
+/* ---------- photos ---------- */
+.card-cover { grid-column: 1 / -1; display: block; margin: -14px -14px 8px; border-radius: 15px 15px 0 0; overflow: hidden; aspect-ratio: 16 / 8; background: var(--sunk); }
+.card-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb { border: 0; padding: 0; background: var(--sunk); border-radius: 12px; overflow: hidden; width: 136px; height: 102px; position: relative; cursor: pointer; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb .chip { position: absolute; left: 6px; bottom: 6px; background: var(--surface); color: var(--ink); }
+.vw-pager { flex: 1; min-height: 0; background: var(--sunk); }
+.vw-pager .panel { padding: 0; overflow: hidden; }
+.zoom { width: 100%; height: 100%; overflow: auto; overscroll-behavior: contain; }
+.zoombtn { border: 0; padding: 0; background: none; width: 100%; height: 100%; display: grid; place-items: center; cursor: zoom-in; }
+.zoombtn img { display: block; max-width: 100%; max-height: 100%; }
+.zoom.zoomed .zoombtn { width: 260%; height: auto; cursor: zoom-out; }
+.zoom.zoomed .zoombtn img { width: 100%; max-height: none; }
 .pf-pager { flex: 1; min-height: 0; }
 .pf-pager .panel { padding: 14px 16px 28px; gap: 18px; }
 .pf-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -288,6 +302,22 @@ details.acc[open] > summary { margin-bottom: 4px; }
     <p class="msg" id="pf-msg" role="alert"></p>
     <div class="confirm"><button class="btn" type="button" id="pf-prev" aria-label="Previous property">‹</button><button class="btn" type="button" id="pf-next" aria-label="Next property">›</button></div>
     <div class="right"><button class="btn" type="button" id="pf-viewed">Mark as viewed</button><button class="btn primary" type="button" id="pf-edit">Edit</button></div>
+  </div>
+</dialog>
+
+<!-- ============ photo viewer: pictures live in this browser only ============ -->
+<input type="file" id="ph-input" accept="image/*" multiple hidden>
+<dialog id="viewer" class="tall" aria-labelledby="vw-title">
+  <div class="grab" id="vw-grab" aria-hidden="true"></div>
+  <div class="sheet-head"><div><h2 id="vw-title">Photo</h2><p id="vw-count"></p></div><button class="x" type="button" id="vw-close" aria-label="Close">×</button></div>
+  <div class="pager vw-pager" id="vw-pager"></div>
+  <div class="sheet-foot">
+    <p class="msg" id="vw-msg" role="alert"></p>
+    <div class="confirm" id="vw-remove-wrap">
+      <button class="btn danger" type="button" id="vw-remove">Remove</button>
+      <span id="vw-confirm" hidden>Remove this picture? <button class="btn danger" type="button" id="vw-remove-yes">Yes, remove</button> <button class="btn" type="button" id="vw-remove-no">Keep</button></span>
+    </div>
+    <div class="right"><button class="btn" type="button" id="vw-kind">Mark as floor plan</button></div>
   </div>
 </dialog>
 
@@ -525,6 +555,7 @@ details.acc[open] > summary { margin-bottom: 4px; }
 
 <script>
 /* Keeps every record in this browser, on this device. Nothing is sent anywhere. */
+window.__photos = true;   /* the photo gallery: pictures are kept in this browser only */
 (function () {
   var KEY = "property-shortlist-v1", SEED = {"properties": {}, "settings": {"main": {"districts": {"cherwell": {"annualChange": 0.047, "avgPrice": 357000, "flatChange": 0.017, "medianPerM2": 4060, "name": "Cherwell", "order": 1, "semiChange": 0.056, "source": "ONS/Land Registry HPI July 2026; £/m² housemetric (Jun 2026)"}, "oxford": {"annualChange": -0.023, "avgPrice": 472000, "flatChange": -0.052, "medianPerM2": null, "name": "Oxford", "order": 4, "semiChange": 0, "source": "ONS/Land Registry HPI July 2026; £/m² not found – add if known"}, "south-oxfordshire": {"annualChange": 0.03, "avgPrice": 476000, "flatChange": null, "medianPerM2": 4910, "name": "South Oxfordshire", "order": 2, "semiChange": null, "source": "ONS/Land Registry HPI July 2026; £/m² housemetric (Jun 2026)"}, "west-oxfordshire": {"annualChange": -0.024, "avgPrice": 417000, "flatChange": -0.053, "medianPerM2": null, "name": "West Oxfordshire", "order": 3, "semiChange": -0.015, "source": "ONS/Land Registry HPI May 2026; £/m² not found – add if known"}}}}, "plan": {"main": {"steps": [], "reminders": ""}}, "units": "miles"}, subs = [], canStore = true, data = null;
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -828,6 +859,134 @@ if (typeof module !== "undefined") module.exports = Logic;
     return dl;
   }
   function indexOfId(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return i; return -1; }
+  /* ---------------- photos: stored in this browser only, never uploaded and never part of a backup ---------------- */
+  var PH = { on: !!window.__photos, db: null, all: [], byProp: {}, seq: 1, target: null, failed: false };
+  function phReq(rq) { return new Promise(function (res, rej) { rq.onsuccess = function () { res(rq.result); }; rq.onerror = function () { rej(rq.error); }; }); }
+  function phDone(tx) { return new Promise(function (res, rej) { tx.oncomplete = function () { res(); }; tx.onerror = tx.onabort = function () { rej(tx.error); }; }); }
+  function phOpen() {
+    return new Promise(function (res, rej) {
+      var rq = indexedDB.open("property-shortlist-photos", 1);
+      rq.onupgradeneeded = function () { var d = rq.result; d.createObjectStore("meta", { keyPath: "id" }); d.createObjectStore("full", { keyPath: "id" }); };
+      rq.onsuccess = function () { res(rq.result); }; rq.onerror = function () { rej(rq.error); };
+    });
+  }
+  function phReindex() {
+    PH.byProp = {};
+    PH.all.forEach(function (m) { if (!m.url) m.url = URL.createObjectURL(m.thumb); (PH.byProp[m.propId] = PH.byProp[m.propId] || []).push(m); PH.seq = Math.max(PH.seq, (m.order || 0) + 1); });
+    for (var k in PH.byProp) PH.byProp[k].sort(function (a, b) { return ((a.kind === "plan" ? 0 : 1) - (b.kind === "plan" ? 0 : 1)) || ((a.order || 0) - (b.order || 0)); });
+  }
+  function phLoad() {
+    return phOpen().then(function (d) { PH.db = d; return phReq(d.transaction(["meta"], "readonly").objectStore("meta").getAll()); })
+      .then(function (all) { PH.all = all || []; phReindex(); });
+  }
+  function photosOf(id) { return PH.byProp[id] || []; }
+  function coverOf(id) { var l = photosOf(id); for (var i = 0; i < l.length; i++) if (l[i].kind !== "plan") return l[i]; return l[0] || null; }
+  function phStored(m) { var c = {}; for (var k in m) if (k !== "url") c[k] = m[k]; return c; }
+  function decode(file) {
+    var viaImg = function () { return new Promise(function (res, rej) { var u = URL.createObjectURL(file), im = new Image(); im.onload = function () { URL.revokeObjectURL(u); res(im); }; im.onerror = function () { URL.revokeObjectURL(u); rej(new Error("unreadable")); }; im.src = u; }); };
+    if (!window.createImageBitmap) return viaImg();
+    return createImageBitmap(file, { imageOrientation: "from-image" }).catch(function () { return createImageBitmap(file); }).catch(viaImg);
+  }
+  function scaled(src, max, q) {
+    var w = src.width, hgt = src.height, k = Math.min(1, max / Math.max(w, hgt)), c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(hgt * k));
+    var g = c.getContext("2d"); g.fillStyle = "#ffffff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(src, 0, 0, c.width, c.height);
+    return new Promise(function (res, rej) { c.toBlob(function (b) { if (b) res({ blob: b, w: c.width, h: c.height }); else rej(new Error("encode")); }, "image/jpeg", q); });
+  }
+  /* each picture is shrunk on the way in: a full copy up to 1600px and a small one for the strips */
+  function phAdd(propId, file) {
+    return decode(file).then(function (src) {
+      return Promise.all([scaled(src, 1600, 0.82), scaled(src, 480, 0.72)]).then(function (r) {
+        if (src.close) src.close();
+        var id = "ph" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+        var meta = { id: id, propId: propId, kind: /floor\s*[-_]?\s*plan|floorplan/i.test(file.name || "") ? "plan" : "photo", order: PH.seq++, added: Date.now(), w: r[0].w, h: r[0].h, thumb: r[1].blob };
+        var tx = PH.db.transaction(["meta", "full"], "readwrite"); tx.objectStore("meta").put(meta); tx.objectStore("full").put({ id: id, blob: r[0].blob });
+        return phDone(tx).then(function () { PH.all.push(meta); });
+      });
+    });
+  }
+  function phFull(id) { return phReq(PH.db.transaction(["full"], "readonly").objectStore("full").get(id)).then(function (r) { return r ? r.blob : null; }); }
+  function phDrop(ids) {
+    if (!ids.length) return Promise.resolve();
+    var tx = PH.db.transaction(["meta", "full"], "readwrite");
+    ids.forEach(function (id) { tx.objectStore("meta").delete(id); tx.objectStore("full").delete(id); });
+    return phDone(tx).then(function () {
+      PH.all = PH.all.filter(function (m) { if (ids.indexOf(m.id) < 0) return true; if (m.url) URL.revokeObjectURL(m.url); return false; }); phReindex();
+    });
+  }
+  function phSetKind(id, kind) {
+    var m = PH.all.filter(function (x) { return x.id === id; })[0]; if (!m) return Promise.resolve();
+    m.kind = kind; var tx = PH.db.transaction(["meta"], "readwrite"); tx.objectStore("meta").put(phStored(m));
+    return phDone(tx).then(phReindex);
+  }
+  function coverEl(id) { var c = PH.on ? coverOf(id) : null; return c ? h("span", { class: "card-cover" }, h("img", { src: c.url, alt: "" })) : null; }
+  function photoChip(id) { var n = PH.on ? photosOf(id).length : 0; return n ? h("span", { class: "chip", text: n + (n === 1 ? " photo" : " photos") }) : null; }
+  function photoSection(r) {
+    if (!PH.on) return null;
+    var list = photosOf(r.id), sec = h("section", { class: "pf-sec" }, h("h3", { text: "Photos" }));
+    if (PH.failed) { sec.appendChild(h("p", { class: "hint", text: "This browser is not letting the app keep photos." })); return sec; }
+    if (list.length) {
+      var row = h("div", { class: "hscroll photos" });
+      list.forEach(function (m) {
+        var b = h("button", { class: "thumb", type: "button", "aria-label": (m.kind === "plan" ? "Floor plan" : "Photo") + ", open full size" },
+          h("img", { src: m.url, alt: "" }), m.kind === "plan" ? h("span", { class: "chip", text: "Floor plan" }) : null);
+        b.addEventListener("click", function () { openViewer(r.id, m.id); });
+        row.appendChild(b);
+      });
+      sec.appendChild(row);
+    }
+    var add = h("button", { class: "btn small", type: "button", text: list.length ? "Add more" : "Add photos" });
+    add.addEventListener("click", function () { PH.target = r.id; var inp = $("ph-input"); inp.value = ""; inp.click(); });
+    sec.appendChild(h("div", { class: "step-foot" }, h("span", { class: "hint", style: "flex:1 1 200px", text: list.length
+      ? list.length + (list.length === 1 ? " picture" : " pictures") + ", kept on this phone only."
+      : "Add pictures you have saved or taken. They stay on this phone: nothing is uploaded, and they are not part of a backup." }), state.canWrite ? add : null));
+    return sec;
+  }
+  function addPhotos() {
+    var files = Array.prototype.slice.call($("ph-input").files || []), id = PH.target, total = files.length, done = 0, bad = 0, full = false, msg = $("pf-msg");
+    if (!total || !id) return;
+    msg.className = "msg info"; msg.textContent = "Adding " + total + (total === 1 ? " picture…" : " pictures…");
+    var finish = function () {
+      phReindex(); msg.className = "msg" + (bad || full ? "" : " info");
+      msg.textContent = full ? "This phone has no room left for the app's photos. " + done + " added."
+        : bad ? bad + (bad === 1 ? " file was" : " files were") + " not a picture the phone could read. " + done + " added." : "";
+      render();
+    };
+    var next = function () {
+      if (!files.length || full) { finish(); return; }
+      phAdd(id, files.shift()).then(function () { done++; }, function (e) { if (e && e.name === "QuotaExceededError") full = true; else bad++; })
+        .then(function () { msg.textContent = "Added " + done + " of " + total + "…"; next(); });
+    };
+    next();
+  }
+  /* full-screen viewer: swipe between a property's pictures, tap to zoom */
+  var VW = { propId: null, list: [], urls: {}, id: null, lock: false };
+  function viewerHead() {
+    var i = indexOfId(VW.list, VW.id); if (i < 0) return; var m = VW.list[i];
+    $("vw-title").textContent = m.kind === "plan" ? "Floor plan" : "Photo";
+    $("vw-count").textContent = (i + 1) + " of " + VW.list.length + " · tap the picture to zoom";
+    $("vw-kind").textContent = m.kind === "plan" ? "Not a floor plan" : "Mark as floor plan";
+    $("vw-kind").hidden = !state.canWrite; $("vw-remove-wrap").hidden = !state.canWrite;
+    $("vw-confirm").hidden = true; $("vw-remove").hidden = false;
+  }
+  function jumpViewer() { var p = $("vw-pager"), i = indexOfId(VW.list, VW.id); if (i >= 0) p.scrollTo({ left: i * p.clientWidth, behavior: "auto" }); }
+  function fillViewer() {
+    var list = VW.list = photosOf(VW.propId).slice();
+    if (!list.length) { if ($("viewer").open) $("viewer").close(); return; }
+    if (indexOfId(list, VW.id) < 0) VW.id = list[0].id;
+    VW.lock = true;
+    fill($("vw-pager"), list.map(function (m) {
+      var img = h("img", { src: VW.urls[m.id] || m.url, alt: m.kind === "plan" ? "Floor plan" : "Photo" });
+      if (!VW.urls[m.id]) phFull(m.id).then(function (blob) { if (!blob || !$("viewer").open) return; VW.urls[m.id] = URL.createObjectURL(blob); img.src = VW.urls[m.id]; }, function () {});
+      var box = h("div", { class: "zoom" }), b = h("button", { class: "zoombtn", type: "button", "aria-label": "Zoom in or out" }, img);
+      b.addEventListener("click", function () { box.classList.toggle("zoomed"); });
+      box.appendChild(b);
+      return h("div", { class: "panel vw-page" }, box);
+    }));
+    jumpViewer(); viewerHead();
+    requestAnimationFrame(function () { jumpViewer(); requestAnimationFrame(function () { VW.lock = false; }); });
+  }
+  function openViewer(propId, photoId) { VW.propId = propId; VW.id = photoId; $("vw-msg").textContent = ""; if (!$("viewer").open) $("viewer").showModal(); fillViewer(); }
   function nameBtn(r) {
     var b = h("button", { class: "namebtn", type: "button", text: r.data.name || "Unnamed property" });
     b.addEventListener("click", function () { openProfile(r.id); });
@@ -908,9 +1067,9 @@ if (typeof module !== "undefined") module.exports = Logic;
                ev.measured ? trimNum(d.floorArea) + " m²" : "size not measured",
                has(d.cycleKm) ? miles(d.cycleKm) + " by bike, " + mins(c.ebike) : "no cycle route yet"].join(" · ");
     var chips = h("span", { class: "chips" }, budgetChip(ev), offChip(r), h("span", { class: "chip" + (d.viewed ? " good" : ""), text: d.viewed ? "Viewed" : "Not viewed" }),
-      d.outlook ? h("span", { class: "chip", text: "Outlook: " + d.outlook.toLowerCase() }) : null);
+      d.outlook ? h("span", { class: "chip", text: "Outlook: " + d.outlook.toLowerCase() }) : null, photoChip(r.id));
     var btn = h("button", { class: "card", type: "button", "aria-label": "Open " + (d.name || "property") },
-      rankBadge(r),
+      coverEl(r.id), rankBadge(r),
       h("span", { class: "card-main" }, h("span", { class: "card-name", text: d.name || "Unnamed property" }), sub ? h("span", { class: "card-sub", text: sub }) : null),
       h("span", { class: "card-score" }, h("span", { class: "num", text: fmt2(ev.score) }),
         h("span", { class: "meter" }, h("span", { style: "width:" + Math.max(0, Math.min(100, ev.score / 5 * 100)) + "%" })),
@@ -1116,6 +1275,7 @@ if (typeof module !== "undefined") module.exports = Logic;
       h("span", { class: "chips" }, budgetChip(ev), offChip(r), h("span", { class: "chip" + (d.viewed ? " good" : ""), text: d.viewed ? "Viewed" : "Not viewed" }),
         ev.measured ? null : h("span", { class: "chip", text: "Space estimated" })),
       h("p", { class: "pnote traits" }, h("b", { text: "Strong on " }), t.strong + ". ", h("b", { text: "Weak on " }), t.weak + "."),
+      photoSection(r),
       h("div", { class: "verdict" }, whyGrid(ev, d, weights())),
       sec("Money", dlist([has(d.asking) ? ["Asking or guide price", gbp.format(d.asking)] : null, ["Price you would pay", money(L.num(d.price, null))],
         ["Work needed", L.num(d.workLow, 0) === L.num(d.workHigh, 0) ? gbp.format(L.num(d.workHigh, 0)) : gbp.format(L.num(d.workLow, 0)) + " to " + gbp.format(L.num(d.workHigh, 0))],
@@ -1157,7 +1317,7 @@ if (typeof module !== "undefined") module.exports = Logic;
     requestAnimationFrame(function () { jumpProfile(false); requestAnimationFrame(function () { state.pfLock = false; }); });
   }
   function openProfile(id) {
-    state.profileId = id; $("pf-msg").textContent = "";
+    state.profileId = id; $("pf-msg").textContent = ""; $("pf-msg").className = "msg";
     if (!$("profile").open) $("profile").showModal();
     fillProfile();
   }
@@ -1280,8 +1440,11 @@ if (typeof module !== "undefined") module.exports = Logic;
     ref.set(d).then(function () { btn.disabled = false; $("editor").close(); }, function (e) { btn.disabled = false; fail(msg, e); });
   }
   function removeProperty() {
-    var msg = $("ed-msg");
-    state.db.collection("properties").doc(state.editing.id).delete().then(function () { $("editor").close(); }, function (e) { fail(msg, e); });
+    var msg = $("ed-msg"), gone = state.editing.id;
+    state.db.collection("properties").doc(gone).delete().then(function () {
+      $("editor").close();
+      if (PH.on && PH.db) phDrop(photosOf(gone).map(function (m) { return m.id; })).then(null, function () {});
+    }, function (e) { fail(msg, e); });
   }
 
   /* ---------------- settings sheet ---------------- */
@@ -1385,7 +1548,7 @@ if (typeof module !== "undefined") module.exports = Logic;
     });
   });
   Array.prototype.forEach.call(document.querySelectorAll("#tabs button"), function (b) { b.addEventListener("click", function () { go(b.getAttribute("data-view"), true); }); });
-  window.addEventListener("resize", function () { go(state.view, false); if ($("profile").open) jumpProfile(false); });
+  window.addEventListener("resize", function () { go(state.view, false); if ($("profile").open) jumpProfile(false); if ($("viewer").open) jumpViewer(); });
   /* the profile header follows the property you have swiped to */
   var pfTick = 0;
   on("pf-pager", "scroll", function () {
@@ -1399,6 +1562,30 @@ if (typeof module !== "undefined") module.exports = Logic;
   on("pf-prev", "click", function () { stepProfile(-1); }); on("pf-next", "click", function () { stepProfile(1); });
   on("pf-close", "click", closer("profile")); on("pf-edit", "click", function () { openEditor(state.profileId); }); on("pf-viewed", "click", toggleViewed);
   on("btn-add", "click", function () { openEditor(null); });
+  on("ph-input", "change", addPhotos);
+  var vwTick = 0;
+  on("vw-pager", "scroll", function () {
+    if (vwTick || VW.lock) return;
+    vwTick = requestAnimationFrame(function () {
+      vwTick = 0; if (VW.lock) return;
+      var p = $("vw-pager"), m = VW.list[Math.round(p.scrollLeft / Math.max(1, p.clientWidth))];
+      if (m && m.id !== VW.id) { VW.id = m.id; viewerHead(); }
+    });
+  });
+  on("vw-close", "click", closer("viewer"));
+  on("viewer", "close", function () { for (var k in VW.urls) URL.revokeObjectURL(VW.urls[k]); VW.urls = {}; fill($("vw-pager"), []); });
+  on("vw-kind", "click", function () {
+    var m = VW.list[indexOfId(VW.list, VW.id)]; if (!m) return;
+    phSetKind(m.id, m.kind === "plan" ? "photo" : "plan").then(function () { render(); fillViewer(); }, function () { $("vw-msg").textContent = "That did not save."; });
+  });
+  on("vw-remove", "click", function () { $("vw-remove").hidden = true; $("vw-confirm").hidden = false; });
+  on("vw-remove-no", "click", function () { $("vw-remove").hidden = false; $("vw-confirm").hidden = true; });
+  on("vw-remove-yes", "click", function () {
+    var i = indexOfId(VW.list, VW.id), gone = VW.id; if (i < 0) return;
+    var nextOne = VW.list[i + 1] || VW.list[i - 1]; VW.id = nextOne ? nextOne.id : null;
+    if (VW.urls[gone]) { URL.revokeObjectURL(VW.urls[gone]); delete VW.urls[gone]; }
+    phDrop([gone]).then(function () { render(); fillViewer(); }, function () { $("vw-msg").textContent = "That could not be removed."; });
+  });
   on("btn-settings", "click", function () { openSettings(); });
   Array.prototype.forEach.call(document.querySelectorAll("#ed-jump .jchip"), function (b) {
     b.addEventListener("click", function () { var t = $(b.getAttribute("data-target")); if (t) t.scrollIntoView({ block: "start", behavior: calm ? "auto" : "smooth" }); });
@@ -1422,6 +1609,7 @@ if (typeof module !== "undefined") module.exports = Logic;
   try { var m = localStorage.getItem("shortlist-mode"); if (m === "countryside" || m === "cyclecost") state.mode = m; } catch (e) {}
   var hash = (location.hash || "").replace("#", ""); if (VIEWS.indexOf(hash) >= 0) state.view = hash;
   go(state.view, false);
+  if (PH.on) { try { phLoad().then(render, function () { PH.failed = true; render(); }); } catch (e) { PH.failed = true; } }
 
   function start() {
     if (!window.claude || typeof window.claude.use !== "function") { state.status = "nodb"; render(); return; }

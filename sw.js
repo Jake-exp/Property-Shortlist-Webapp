@@ -1,5 +1,5 @@
-/* Lets the app open with no signal. The page is fetched fresh when there is a connection, so updates arrive on their own. */
-const CACHE = "shortlist-v1";
+/* Lets the app open with no signal, or if the site is ever taken down. The page is fetched fresh when it can be, so updates arrive on their own. */
+const CACHE = "shortlist-v2";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", (e) => {
@@ -12,9 +12,10 @@ self.addEventListener("fetch", (e) => {
   const font = url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com";
   if (url.origin !== self.location.origin && !font) return;
   if (req.mode === "navigate") {
-    const fresh = fetch(req).then((res) => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put("./index.html", copy)); } return res; });
-    const slow = new Promise((resolve) => setTimeout(resolve, 3000)).then(() => caches.match("./index.html"));
-    e.respondWith(Promise.race([fresh, slow.then((hit) => hit || fresh)]).catch(() => caches.match("./index.html")));
+    const saved = () => caches.match("./index.html");
+    const fresh = fetch(req).then((res) => { if (!res.ok) throw new Error("not served"); const copy = res.clone(); caches.open(CACHE).then((c) => c.put("./index.html", copy)); return res; });
+    const slow = new Promise((resolve) => setTimeout(resolve, 3000)).then(saved);
+    e.respondWith(Promise.race([fresh, slow.then((hit) => hit || fresh)]).catch(() => saved().then((hit) => hit || fetch(req))));
     return;
   }
   e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => {
