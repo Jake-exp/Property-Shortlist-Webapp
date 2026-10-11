@@ -197,6 +197,14 @@ dialog::backdrop { background: var(--shade); }
 .thumb { border: 0; padding: 0; background: var(--sunk); border-radius: 12px; overflow: hidden; width: 136px; height: 102px; position: relative; cursor: pointer; }
 .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .thumb .chip { position: absolute; left: 6px; bottom: 6px; background: var(--surface); color: var(--ink); }
+.planbox { border: 1px solid var(--line); padding: 8px; background: #ffffff; border-radius: 12px; width: 100%; display: grid; place-items: center; cursor: zoom-in; }
+.planbox img { display: block; max-width: 100%; max-height: 440px; object-fit: contain; }
+.around { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.around .thumb { width: 100%; height: auto; aspect-ratio: 4 / 3; }
+.around .thumb:only-child { grid-column: 1 / -1; aspect-ratio: 16 / 9; }
+.feats { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14.5px; }
+.pick { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+.pick select { min-height: 44px; max-width: 100%; padding: 8px 10px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); }
 .vw-pager { flex: 1; min-height: 0; background: var(--sunk); }
 .vw-pager .panel { padding: 0; overflow: hidden; }
 .zoom { width: 100%; height: 100%; overflow: auto; overscroll-behavior: contain; }
@@ -306,7 +314,8 @@ details.acc[open] > summary { margin-bottom: 4px; }
 </dialog>
 
 <!-- ============ photo viewer: pictures live in this browser only ============ -->
-<input type="file" id="ph-input" accept="image/*" multiple hidden>
+<input type="file" id="ph-input" accept="image/*,text/plain,.txt" multiple hidden>
+<input type="file" id="ft-input" accept="text/plain,.txt" hidden>
 <dialog id="viewer" class="tall" aria-labelledby="vw-title">
   <div class="grab" id="vw-grab" aria-hidden="true"></div>
   <div class="sheet-head"><div><h2 id="vw-title">Photo</h2><p id="vw-count"></p></div><button class="x" type="button" id="vw-close" aria-label="Close">×</button></div>
@@ -317,7 +326,8 @@ details.acc[open] > summary { margin-bottom: 4px; }
       <button class="btn danger" type="button" id="vw-remove">Remove</button>
       <span id="vw-confirm" hidden>Remove this picture? <button class="btn danger" type="button" id="vw-remove-yes">Yes, remove</button> <button class="btn" type="button" id="vw-remove-no">Keep</button></span>
     </div>
-    <div class="right"><button class="btn" type="button" id="vw-kind">Mark as floor plan</button></div>
+    <label class="pick right" id="vw-kind-wrap"><span>File under</span>
+      <select id="vw-kind"><option value="photo">Photos</option><option value="plan">Floor plan</option><option value="street">Street view</option><option value="aerial">Satellite view</option></select></label>
   </div>
 </dialog>
 
@@ -537,6 +547,20 @@ details.acc[open] > summary { margin-bottom: 4px; }
       <span id="sp-confirm" hidden>Remove this step? <button class="btn danger" type="button" id="sp-remove-yes">Yes, remove</button> <button class="btn" type="button" id="sp-remove-no">Keep</button></span>
     </div>
     <div class="right"><button class="btn" type="button" id="sp-cancel">Cancel</button><button class="btn primary" type="button" id="sp-save">Save</button></div>
+  </div>
+</dialog>
+
+<!-- ============ key features sheet ============ -->
+<dialog id="featdlg" aria-labelledby="ft-title">
+  <div class="grab" id="ft-grab" aria-hidden="true"></div>
+  <div class="sheet-head"><h2 id="ft-title">Key features</h2><button class="x" type="button" id="ft-close" aria-label="Close">×</button></div>
+  <form class="sheet-body" id="ft-form" novalidate>
+    <div class="field"><label for="ft-text">One feature on each line</label><textarea id="ft-text" style="min-height:220px"></textarea></div>
+    <div class="confirm"><button class="btn small" type="button" id="ft-pick">Fill from a text file</button></div>
+  </form>
+  <div class="sheet-foot">
+    <p class="msg" id="ft-msg" role="alert"></p>
+    <div class="right"><button class="btn" type="button" id="ft-cancel">Cancel</button><button class="btn primary" type="button" id="ft-save">Save</button></div>
   </div>
 </dialog>
 
@@ -860,7 +884,19 @@ if (typeof module !== "undefined") module.exports = Logic;
   }
   function indexOfId(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return i; return -1; }
   /* ---------------- photos: stored in this browser only, never uploaded and never part of a backup ---------------- */
-  var PH = { on: !!window.__photos, db: null, all: [], byProp: {}, seq: 1, target: null, failed: false };
+  var PH = { on: !!window.__photos, db: null, all: [], byProp: {}, seq: 1, target: null, failed: false, fullUrls: {} };
+  var KINDS = [["photo", "Photo"], ["plan", "Floor plan"], ["street", "Street view"], ["aerial", "Satellite view"]];
+  function kindRank(k) { for (var i = 0; i < KINDS.length; i++) if (KINDS[i][0] === k) return i; return 0; }
+  function kindOf(m) { return KINDS[kindRank(m.kind)][0]; }
+  function kindLabel(k) { return KINDS[kindRank(k)][1]; }
+  /* a file's name decides where its picture is filed; it can be moved afterwards in the viewer */
+  function guessKind(name) {
+    name = String(name || "");
+    if (/floor[\s_-]*plan|(^|[^a-z])(fp|plans?)([^a-z]|$)/i.test(name)) return "plan";
+    if (/street[\s_-]*(view|snap|scene|level)|^\s*street([^a-z]|$)/i.test(name)) return "street";
+    if (/satellite|aerial|overhead|birds?[\s_-]*eye|from[\s_-]*above|(^|[^a-z])(sat|maps?)([^a-z]|$)/i.test(name)) return "aerial";
+    return "photo";
+  }
   function phReq(rq) { return new Promise(function (res, rej) { rq.onsuccess = function () { res(rq.result); }; rq.onerror = function () { rej(rq.error); }; }); }
   function phDone(tx) { return new Promise(function (res, rej) { tx.oncomplete = function () { res(); }; tx.onerror = tx.onabort = function () { rej(tx.error); }; }); }
   function phOpen() {
@@ -873,14 +909,14 @@ if (typeof module !== "undefined") module.exports = Logic;
   function phReindex() {
     PH.byProp = {};
     PH.all.forEach(function (m) { if (!m.url) m.url = URL.createObjectURL(m.thumb); (PH.byProp[m.propId] = PH.byProp[m.propId] || []).push(m); PH.seq = Math.max(PH.seq, (m.order || 0) + 1); });
-    for (var k in PH.byProp) PH.byProp[k].sort(function (a, b) { return ((a.kind === "plan" ? 0 : 1) - (b.kind === "plan" ? 0 : 1)) || ((a.order || 0) - (b.order || 0)); });
+    for (var k in PH.byProp) PH.byProp[k].sort(function (a, b) { return (kindRank(a.kind) - kindRank(b.kind)) || ((a.order || 0) - (b.order || 0)); });
   }
   function phLoad() {
     return phOpen().then(function (d) { PH.db = d; return phReq(d.transaction(["meta"], "readonly").objectStore("meta").getAll()); })
       .then(function (all) { PH.all = all || []; phReindex(); });
   }
   function photosOf(id) { return PH.byProp[id] || []; }
-  function coverOf(id) { var l = photosOf(id); for (var i = 0; i < l.length; i++) if (l[i].kind !== "plan") return l[i]; return l[0] || null; }
+  function coverOf(id) { var l = photosOf(id), pick = function (k) { for (var i = 0; i < l.length; i++) if (kindOf(l[i]) === k) return l[i]; return null; }; return pick("photo") || pick("street") || pick("aerial") || l[0] || null; }
   function phStored(m) { var c = {}; for (var k in m) if (k !== "url") c[k] = m[k]; return c; }
   function decode(file) {
     var viaImg = function () { return new Promise(function (res, rej) { var u = URL.createObjectURL(file), im = new Image(); im.onload = function () { URL.revokeObjectURL(u); res(im); }; im.onerror = function () { URL.revokeObjectURL(u); rej(new Error("unreadable")); }; im.src = u; }); };
@@ -894,14 +930,14 @@ if (typeof module !== "undefined") module.exports = Logic;
     return new Promise(function (res, rej) { c.toBlob(function (b) { if (b) res({ blob: b, w: c.width, h: c.height }); else rej(new Error("encode")); }, "image/jpeg", q); });
   }
   /* each picture is shrunk on the way in: a full copy up to 1600px and a small one for the strips */
-  function phAdd(propId, file) {
+  function phAdd(propId, file, srcKey) {
     return decode(file).then(function (src) {
       return Promise.all([scaled(src, 1600, 0.82), scaled(src, 480, 0.72)]).then(function (r) {
         if (src.close) src.close();
         var id = "ph" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-        var meta = { id: id, propId: propId, kind: /floor\s*[-_]?\s*plan|floorplan/i.test(file.name || "") ? "plan" : "photo", order: PH.seq++, added: Date.now(), w: r[0].w, h: r[0].h, thumb: r[1].blob };
+        var meta = { id: id, propId: propId, kind: guessKind(file.name), src: srcKey || "", order: PH.seq++, added: Date.now(), w: r[0].w, h: r[0].h, thumb: r[1].blob };
         var tx = PH.db.transaction(["meta", "full"], "readwrite"); tx.objectStore("meta").put(meta); tx.objectStore("full").put({ id: id, blob: r[0].blob });
-        return phDone(tx).then(function () { PH.all.push(meta); });
+        return phDone(tx).then(function () { PH.all.push(meta); return meta.kind; });
       });
     });
   }
@@ -911,7 +947,7 @@ if (typeof module !== "undefined") module.exports = Logic;
     var tx = PH.db.transaction(["meta", "full"], "readwrite");
     ids.forEach(function (id) { tx.objectStore("meta").delete(id); tx.objectStore("full").delete(id); });
     return phDone(tx).then(function () {
-      PH.all = PH.all.filter(function (m) { if (ids.indexOf(m.id) < 0) return true; if (m.url) URL.revokeObjectURL(m.url); return false; }); phReindex();
+      PH.all = PH.all.filter(function (m) { if (ids.indexOf(m.id) < 0) return true; if (m.url) URL.revokeObjectURL(m.url); if (PH.fullUrls[m.id]) { URL.revokeObjectURL(PH.fullUrls[m.id]); delete PH.fullUrls[m.id]; } return false; }); phReindex();
     });
   }
   function phSetKind(id, kind) {
@@ -920,53 +956,138 @@ if (typeof module !== "undefined") module.exports = Logic;
     return phDone(tx).then(phReindex);
   }
   function coverEl(id) { var c = PH.on ? coverOf(id) : null; return c ? h("span", { class: "card-cover" }, h("img", { src: c.url, alt: "" })) : null; }
-  function photoChip(id) { var n = PH.on ? photosOf(id).length : 0; return n ? h("span", { class: "chip", text: n + (n === 1 ? " photo" : " photos") }) : null; }
-  function photoSection(r) {
-    if (!PH.on) return null;
-    var list = photosOf(r.id), sec = h("section", { class: "pf-sec" }, h("h3", { text: "Photos" }));
-    if (PH.failed) { sec.appendChild(h("p", { class: "hint", text: "This browser is not letting the app keep photos." })); return sec; }
-    if (list.length) {
-      var row = h("div", { class: "hscroll photos" });
-      list.forEach(function (m) {
-        var b = h("button", { class: "thumb", type: "button", "aria-label": (m.kind === "plan" ? "Floor plan" : "Photo") + ", open full size" },
-          h("img", { src: m.url, alt: "" }), m.kind === "plan" ? h("span", { class: "chip", text: "Floor plan" }) : null);
-        b.addEventListener("click", function () { openViewer(r.id, m.id); });
-        row.appendChild(b);
-      });
-      sec.appendChild(row);
-    }
-    var add = h("button", { class: "btn small", type: "button", text: list.length ? "Add more" : "Add photos" });
-    add.addEventListener("click", function () { PH.target = r.id; var inp = $("ph-input"); inp.value = ""; inp.click(); });
-    sec.appendChild(h("div", { class: "step-foot" }, h("span", { class: "hint", style: "flex:1 1 200px", text: list.length
-      ? list.length + (list.length === 1 ? " picture" : " pictures") + ", kept on this phone only."
-      : "Add pictures you have saved or taken. They stay on this phone: nothing is uploaded, and they are not part of a backup." }), state.canWrite ? add : null));
+  function photoChip(id) { var n = PH.on ? photosOf(id).length : 0; return n ? h("span", { class: "chip", text: n + (n === 1 ? " picture" : " pictures") }) : null; }
+  function thumbBtn(r, m, cls, caption) {
+    var b = h("button", { class: cls, type: "button", "aria-label": kindLabel(m.kind) + ", open full size" }, h("img", { src: m.url, alt: "" }), caption ? h("span", { class: "chip", text: caption }) : null);
+    b.addEventListener("click", function () { openViewer(r.id, m.id); });
+    return b;
+  }
+  /* a floor plan is shown whole and sharp, so it uses the full copy and not the small one */
+  function planBox(r, m) {
+    var b = thumbBtn(r, m, "planbox", null), img = b.querySelector("img");
+    if (PH.fullUrls[m.id]) img.src = PH.fullUrls[m.id];
+    else phFull(m.id).then(function (blob) { if (!blob) return; if (!PH.fullUrls[m.id]) PH.fullUrls[m.id] = URL.createObjectURL(blob); img.src = PH.fullUrls[m.id]; }, function () {});
+    return b;
+  }
+  /* key features: plain lines of text saved with the property */
+  function featureLines(text) {
+    return String(text || "").replace(/^﻿/, "").split(/\r\n|\r|\n/)
+      .map(function (s) { return s.replace(/^\s*(?:[-*•·–—▪●◦‣]+\s*|\d{1,2}[.)]\s+)/, "").trim(); })
+      .filter(function (s) { return s && !/^key\s+features\s*:?$/i.test(s); }).slice(0, 60).map(function (s) { return s.slice(0, 240); });
+  }
+  function readText(file) {
+    return new Promise(function (res, rej) { var fr = new FileReader(); fr.onload = function () { res(fr.result); }; fr.onerror = function () { rej(fr.error); }; fr.readAsArrayBuffer(file); }).then(function (buf) {
+      var b = new Uint8Array(buf), t;
+      if (b.length >= 2 && ((b[0] === 0xFF && b[1] === 0xFE) || (b[0] === 0xFE && b[1] === 0xFF))) t = new TextDecoder(b[0] === 0xFF ? "utf-16le" : "utf-16be").decode(b);
+      else { try { t = new TextDecoder("utf-8", { fatal: true }).decode(b); } catch (e) { t = new TextDecoder("windows-1252").decode(b); } }
+      if (/[\u0000-\u0008\u000E-\u001F]/.test(t)) throw new Error("not text");   /* a document or other file that only looks like text by its name */
+      return t;
+    });
+  }
+  function isText(f) { return /^text\/plain/i.test(f.type || "") || /\.(txt|text)$/i.test(f.name || ""); }
+  function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
+  function listAnd(parts) { return parts.length < 2 ? parts.join("") : parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1]; }
+  function featureSection(r) {
+    var lines = String(r.data.features || "").split("\n").filter(Boolean);
+    if (!lines.length && !state.canWrite) return null;
+    var sec = h("section", { class: "pf-sec" }, h("h3", { text: "Key features" }));
+    if (lines.length) { var ul = h("ul", { class: "feats" }); lines.forEach(function (s) { ul.appendChild(h("li", { text: s })); }); sec.appendChild(ul); }
+    var ed = h("button", { class: "btn small", type: "button", text: lines.length ? "Edit" : "Add" });
+    ed.addEventListener("click", function () { openFeatures(r.id); });
+    sec.appendChild(h("div", { class: "step-foot" }, h("span", { class: "hint", style: "flex:1 1 200px", text: lines.length ? "Saved with the property, so they are in your backup."
+      : PH.on ? "Pick the listing's text file along with the pictures, or type the features in." : "The listing's key features, one on each line." }), state.canWrite ? ed : null));
     return sec;
   }
+  function openFeatures(id) {
+    var it = state.items.filter(function (x) { return x.id === id; })[0]; if (!it) return;
+    state.featId = id; $("ft-text").value = it.data.features || ""; $("ft-msg").textContent = ""; $("ft-msg").className = "msg";
+    $("ft-text").disabled = !state.canWrite; $("ft-save").hidden = !state.canWrite; $("ft-pick").hidden = !state.canWrite;
+    $("featdlg").showModal();
+  }
+  function saveFeatures() {
+    var btn = $("ft-save"), msg = $("ft-msg"), lines = featureLines($("ft-text").value); if (!state.featId) return;
+    btn.disabled = true; msg.className = "msg"; msg.textContent = "";
+    state.db.collection("properties").doc(state.featId).update({ features: lines.join("\n") })
+      .then(function () { btn.disabled = false; $("featdlg").close(); }, function (e) { btn.disabled = false; fail(msg, e); });
+  }
+  function pickFeatures() {
+    var f = ($("ft-input").files || [])[0], msg = $("ft-msg"); if (!f) return;
+    var no = function () { msg.className = "msg"; msg.textContent = "That file is not plain text the phone could read."; };
+    if (f.size > 200000) { no(); return; }
+    readText(f).then(function (t) { var lines = featureLines(t); if (!lines.length) { no(); return; } $("ft-text").value = lines.join("\n"); msg.className = "msg info"; msg.textContent = "Filled from the file. Save to keep it."; }, no);
+  }
+  function photoSection(r) {
+    if (!PH.on) return featureSection(r);
+    var frag = document.createDocumentFragment(), list = photosOf(r.id), of = function (k) { return list.filter(function (m) { return kindOf(m) === k; }); };
+    var photos = of("photo"), plans = of("plan"), around = of("street").concat(of("aerial"));
+    var sec = h("section", { class: "pf-sec" }, h("h3", { text: "Photos" }));
+    frag.appendChild(sec);
+    if (PH.failed) { sec.appendChild(h("p", { class: "hint", text: "This browser is not letting the app keep photos." })); var ff = featureSection(r); if (ff) frag.appendChild(ff); return frag; }
+    if (photos.length) {
+      var row = h("div", { class: "hscroll photos" });
+      photos.forEach(function (m) { row.appendChild(thumbBtn(r, m, "thumb", null)); });
+      sec.appendChild(row);
+    }
+    var add = h("button", { class: "btn small", type: "button", text: list.length ? "Add more" : "Add from phone" });
+    add.addEventListener("click", function () { PH.target = r.id; var inp = $("ph-input"); inp.value = ""; inp.click(); });
+    sec.appendChild(h("div", { class: "step-foot" }, h("span", { class: "hint", style: "flex:1 1 200px", text: list.length
+      ? plural(list.length, "picture", "pictures") + ", kept on this phone only."
+      : "Pick everything in this property's folder in one go: photos, floor plan, street and satellite views, and the key features text file. Pictures stay on this phone: nothing is uploaded, and they are not part of a backup." }), state.canWrite ? add : null));
+    if (plans.length) {
+      var ps = h("section", { class: "pf-sec" }, h("h3", { text: plans.length === 1 ? "Floor plan" : "Floor plans" }));
+      plans.forEach(function (m) { ps.appendChild(planBox(r, m)); });
+      frag.appendChild(ps);
+    }
+    if (around.length) {
+      var grid = h("div", { class: "around" });
+      around.forEach(function (m) { grid.appendChild(thumbBtn(r, m, "thumb", kindLabel(m.kind))); });
+      frag.appendChild(h("section", { class: "pf-sec" }, h("h3", { text: "Location" }), grid));
+    }
+    var fs = featureSection(r); if (fs) frag.appendChild(fs);
+    return frag;
+  }
+  /* one import takes pictures and a text file together; pictures are filed by their names */
   function addPhotos() {
-    var files = Array.prototype.slice.call($("ph-input").files || []), id = PH.target, total = files.length, done = 0, bad = 0, full = false, msg = $("pf-msg");
-    if (!total || !id) return;
-    msg.className = "msg info"; msg.textContent = "Adding " + total + (total === 1 ? " picture…" : " pictures…");
+    var files = Array.prototype.slice.call($("ph-input").files || []), id = PH.target, msg = $("pf-msg");
+    if (!files.length || !id) return;
+    var texts = files.filter(isText), pics = files.filter(function (f) { return !isText(f); }), total = pics.length;
+    var n = { photo: 0, plan: 0, street: 0, aerial: 0 }, done = 0, bad = 0, dup = 0, full = false, feats = 0, featFail = false;
+    msg.className = "msg info"; msg.textContent = "Adding " + plural(files.length, "file", "files") + "…";
     var finish = function () {
-      phReindex(); msg.className = "msg" + (bad || full ? "" : " info");
-      msg.textContent = full ? "This phone has no room left for the app's photos. " + done + " added."
-        : bad ? bad + (bad === 1 ? " file was" : " files were") + " not a picture the phone could read. " + done + " added." : "";
-      render();
+      phReindex();
+      var got = [];
+      if (n.photo) got.push(plural(n.photo, "photo", "photos")); if (n.plan) got.push(plural(n.plan, "floor plan", "floor plans"));
+      if (n.street) got.push(plural(n.street, "street view", "street views")); if (n.aerial) got.push(plural(n.aerial, "satellite view", "satellite views"));
+      if (feats) got.push(plural(feats, "key feature", "key features"));
+      var out = got.length ? "Added " + listAnd(got) + "." : "Nothing new was added.";
+      if (dup) out += " " + plural(dup, "picture was", "pictures were") + " already here.";
+      if (bad) out += " " + plural(bad, "file was", "files were") + " not a picture or a plain text file the phone could read.";
+      if (featFail) out += " The key features did not save.";
+      if (full) out = "This phone has no room left for the app's photos. " + out;
+      msg.className = "msg" + (bad || full || featFail ? "" : " info"); msg.textContent = out; render();
     };
     var next = function () {
-      if (!files.length || full) { finish(); return; }
-      phAdd(id, files.shift()).then(function () { done++; }, function (e) { if (e && e.name === "QuotaExceededError") full = true; else bad++; })
-        .then(function () { msg.textContent = "Added " + done + " of " + total + "…"; next(); });
+      if (!pics.length || full) { finish(); return; }
+      var f = pics.shift(), key = (f.name || "") + "|" + f.size;
+      if (PH.all.some(function (m) { return m.propId === id && m.src && m.src === key; })) { dup++; setTimeout(next, 0); return; }
+      phAdd(id, f, key).then(function (kind) { done++; n[kindRank(kind) ? kind : "photo"]++; }, function (e) { if (e && e.name === "QuotaExceededError") full = true; else bad++; })
+        .then(function () { msg.textContent = "Added " + done + " of " + total + (total === 1 ? " picture…" : " pictures…"); next(); });
     };
-    next();
+    texts.reduce(function (p, f) {
+      return p.then(function (acc) { if (f.size > 200000) { bad++; return acc; } return readText(f).then(function (t) { return acc.concat(featureLines(t)); }, function () { bad++; return acc; }); });
+    }, Promise.resolve([])).then(function (lines) {
+      lines = lines.slice(0, 60); if (!lines.length) { if (texts.length) bad += 0; return; }
+      return state.db.collection("properties").doc(id).update({ features: lines.join("\n") }).then(function () { feats = lines.length; }, function () { featFail = true; });
+    }).then(next, next);
   }
   /* full-screen viewer: swipe between a property's pictures, tap to zoom */
   var VW = { propId: null, list: [], urls: {}, id: null, lock: false };
   function viewerHead() {
     var i = indexOfId(VW.list, VW.id); if (i < 0) return; var m = VW.list[i];
-    $("vw-title").textContent = m.kind === "plan" ? "Floor plan" : "Photo";
+    $("vw-title").textContent = kindLabel(m.kind);
     $("vw-count").textContent = (i + 1) + " of " + VW.list.length + " · tap the picture to zoom";
-    $("vw-kind").textContent = m.kind === "plan" ? "Not a floor plan" : "Mark as floor plan";
-    $("vw-kind").hidden = !state.canWrite; $("vw-remove-wrap").hidden = !state.canWrite;
+    $("vw-kind").value = kindOf(m);
+    $("vw-kind-wrap").hidden = !state.canWrite; $("vw-remove-wrap").hidden = !state.canWrite;
     $("vw-confirm").hidden = true; $("vw-remove").hidden = false;
   }
   function jumpViewer() { var p = $("vw-pager"), i = indexOfId(VW.list, VW.id); if (i >= 0) p.scrollTo({ left: i * p.clientWidth, behavior: "auto" }); }
@@ -976,7 +1097,7 @@ if (typeof module !== "undefined") module.exports = Logic;
     if (indexOfId(list, VW.id) < 0) VW.id = list[0].id;
     VW.lock = true;
     fill($("vw-pager"), list.map(function (m) {
-      var img = h("img", { src: VW.urls[m.id] || m.url, alt: m.kind === "plan" ? "Floor plan" : "Photo" });
+      var img = h("img", { src: VW.urls[m.id] || m.url, alt: kindLabel(m.kind) });
       if (!VW.urls[m.id]) phFull(m.id).then(function (blob) { if (!blob || !$("viewer").open) return; VW.urls[m.id] = URL.createObjectURL(blob); img.src = VW.urls[m.id]; }, function () {});
       var box = h("div", { class: "zoom" }), b = h("button", { class: "zoombtn", type: "button", "aria-label": "Zoom in or out" }, img);
       b.addEventListener("click", function () { box.classList.toggle("zoomed"); });
@@ -1324,7 +1445,7 @@ if (typeof module !== "undefined") module.exports = Logic;
   function stepProfile(by) {
     var list = state.profileList, i = indexOfId(list, state.profileId) + by;
     if (i < 0 || i >= list.length) return;
-    state.profileId = list[i].id; jumpProfile(true); profileHead();
+    state.profileId = list[i].id; $("pf-msg").textContent = ""; jumpProfile(true); profileHead();
   }
   function toggleViewed() {
     var i = indexOfId(state.profileList, state.profileId); if (i < 0) return;
@@ -1556,13 +1677,15 @@ if (typeof module !== "undefined") module.exports = Logic;
     pfTick = requestAnimationFrame(function () {
       pfTick = 0; if (state.pfLock) return;
       var p = $("pf-pager"), r = state.profileList[Math.round(p.scrollLeft / Math.max(1, p.clientWidth))];
-      if (r && r.id !== state.profileId) { state.profileId = r.id; profileHead(); }
+      if (r && r.id !== state.profileId) { state.profileId = r.id; $("pf-msg").textContent = ""; profileHead(); }
     });
   });
   on("pf-prev", "click", function () { stepProfile(-1); }); on("pf-next", "click", function () { stepProfile(1); });
   on("pf-close", "click", closer("profile")); on("pf-edit", "click", function () { openEditor(state.profileId); }); on("pf-viewed", "click", toggleViewed);
   on("btn-add", "click", function () { openEditor(null); });
   on("ph-input", "change", addPhotos);
+  on("ft-save", "click", saveFeatures); on("ft-cancel", "click", closer("featdlg")); on("ft-close", "click", closer("featdlg"));
+  on("ft-pick", "click", function () { var inp = $("ft-input"); inp.value = ""; inp.click(); }); on("ft-input", "change", pickFeatures);
   var vwTick = 0;
   on("vw-pager", "scroll", function () {
     if (vwTick || VW.lock) return;
@@ -1574,9 +1697,9 @@ if (typeof module !== "undefined") module.exports = Logic;
   });
   on("vw-close", "click", closer("viewer"));
   on("viewer", "close", function () { for (var k in VW.urls) URL.revokeObjectURL(VW.urls[k]); VW.urls = {}; fill($("vw-pager"), []); });
-  on("vw-kind", "click", function () {
+  on("vw-kind", "change", function () {
     var m = VW.list[indexOfId(VW.list, VW.id)]; if (!m) return;
-    phSetKind(m.id, m.kind === "plan" ? "photo" : "plan").then(function () { render(); fillViewer(); }, function () { $("vw-msg").textContent = "That did not save."; });
+    phSetKind(m.id, KINDS[kindRank($("vw-kind").value)][0]).then(function () { render(); fillViewer(); }, function () { $("vw-msg").textContent = "That did not save."; });
   });
   on("vw-remove", "click", function () { $("vw-remove").hidden = true; $("vw-confirm").hidden = false; });
   on("vw-remove-no", "click", function () { $("vw-remove").hidden = false; $("vw-confirm").hidden = true; });
@@ -1592,7 +1715,7 @@ if (typeof module !== "undefined") module.exports = Logic;
   });
   on("ed-form", "input", preview); on("ed-form", "change", preview);
   on("st-form", "input", previewSettings); on("st-form", "change", previewSettings);
-  ["ed-form", "st-form", "sp-form", "rm-form"].forEach(function (f) { on(f, "submit", function (e) { e.preventDefault(); }); });
+  ["ed-form", "st-form", "sp-form", "rm-form", "ft-form"].forEach(function (f) { on(f, "submit", function (e) { e.preventDefault(); }); });
   on("ed-save", "click", saveProperty); on("ed-cancel", "click", closer("editor")); on("ed-close", "click", closer("editor"));
   on("ed-remove", "click", function () { $("ed-remove").hidden = true; $("ed-confirm").hidden = false; });
   on("ed-remove-no", "click", function () { $("ed-remove").hidden = false; $("ed-confirm").hidden = true; });
