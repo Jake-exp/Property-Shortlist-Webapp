@@ -513,7 +513,7 @@ details.acc[open] > summary { margin-bottom: 4px; }
           <div class="field"><label for="s-space-best">Space scores 5 at (m²)</label><input type="number" id="s-space-best" inputmode="decimal" min="0" step="5"></div>
           <div class="field"><label for="s-space-worst">Space scores 1 at (m²)</label><input type="number" id="s-space-worst" inputmode="decimal" min="0" step="5"></div>
         </div>
-        <div class="field"><label for="s-tier-first">Treat scores as level when they are within</label><input type="number" id="s-tier-first" inputmode="decimal" min="0" step="0.05"><span class="hint">Gaps smaller than this are within the noise of the estimates.</span></div>
+        <div class="field"><label for="s-tier-first">Treat scores as level when they are within (points out of 5)</label><input type="number" id="s-tier-first" inputmode="decimal" min="0" step="0.05"><span class="hint">Gaps smaller than this are within the noise of the estimates. The list shows it as a percentage of the top score.</span></div>
       </fieldset>
     </details>
 
@@ -858,6 +858,13 @@ if (typeof module !== "undefined") module.exports = Logic;
   function fmt1(v) { return (Math.round(v * 10) / 10).toFixed(1); }
   function pct(v) { return Math.round(v * 100) + "%"; }
   function trimNum(v) { return String(Math.round(v * 100) / 100); }
+  /* The headline number is each property's score as a share of the top-ranked one, which reads 100%.
+     The points out of 5 behind it are unchanged and still shown in each profile. */
+  function topOf(rows) { rows = rows || state.rows || []; for (var i = 0; i < rows.length; i++) if (rows[i].state === "in") return rows[i].ev.score; return null; }
+  function share(v, top) { return top > 0 ? v / top * 100 : null; }
+  function pcNum(v) { return String(Math.round(v * 10) / 10) + "%"; }
+  function match(v, top) { if (top === undefined) top = topOf(); var s = share(v, top); return s === null ? fmt2(v) : pcNum(s); }
+  function gapText(g, top) { if (top === undefined) top = topOf(); var s = share(g, top); return s === null ? fmt2(g) : pcNum(s); }
   function chg(v) { return v === null ? "–" : (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v * 100).toFixed(1) + "%"; }
   function rate(g) { g = L.num(g, 0); return g === 0 ? "" : " (" + (g > 0 ? "+" : "−") + trimNum(Math.abs(g) * 100) + "% a year)"; }
   var KM = 1.609;   /* km in a mile, the same factor the spreadsheet uses; distances are stored in km and shown in miles */
@@ -1138,7 +1145,7 @@ if (typeof module !== "undefined") module.exports = Logic;
   }
   function whereText(r) {
     var d = r.data;
-    return r.state === "in" ? (r.pos === 1 ? "Top of the list" : fmt2(r.gap) + " behind the top") : (r.state === "out" ? "Over your maximum" : "Set aside" + (d.asideReason ? ": " + d.asideReason : ""));
+    return r.state === "in" ? (r.pos === 1 ? "Top of the list" : gapText(r.gap) + " behind the top") : (r.state === "out" ? "Over your maximum" : "Set aside" + (d.asideReason ? ": " + d.asideReason : ""));
   }
   function traitText(ev, n) {
     var list = KEYS.map(function (k) { return [k, ev.scores[k]]; });
@@ -1192,9 +1199,9 @@ if (typeof module !== "undefined") module.exports = Logic;
     var btn = h("button", { class: "card", type: "button", "aria-label": "Open " + (d.name || "property") },
       coverEl(r.id), rankBadge(r),
       h("span", { class: "card-main" }, h("span", { class: "card-name", text: d.name || "Unnamed property" }), sub ? h("span", { class: "card-sub", text: sub }) : null),
-      h("span", { class: "card-score" }, h("span", { class: "num", text: fmt2(ev.score) }),
-        h("span", { class: "meter" }, h("span", { style: "width:" + Math.max(0, Math.min(100, ev.score / 5 * 100)) + "%" })),
-        h("span", { class: "of", text: r.state === "in" ? (r.pos === 1 ? "top" : fmt2(r.gap) + " behind") : (r.state === "out" ? "over max" : "set aside") })),
+      h("span", { class: "card-score" }, h("span", { class: "num", text: match(ev.score) }),
+        h("span", { class: "meter" }, h("span", { style: "width:" + Math.max(0, Math.min(100, share(ev.score, topOf()) === null ? ev.score / 5 * 100 : share(ev.score, topOf()))) + "%" })),
+        h("span", { class: "of", text: r.state === "in" ? (r.pos === 1 ? "top" : gapText(r.gap) + " behind") : (r.state === "out" ? "over max" : "set aside") })),
       h("span", { class: "card-body" }, h("span", { class: "key", text: key }),
         h("span", { class: "traits" }, h("b", { text: "Strong on " }), t.strong + ". ", h("b", { text: "Weak on " }), t.weak + "."), chips));
     btn.addEventListener("click", function () { openProfile(r.id); });
@@ -1214,7 +1221,7 @@ if (typeof module !== "undefined") module.exports = Logic;
       mine.forEach(function (r) { ul.appendChild(h("li", null, card(r))); });
       out.push(h("section", { class: "sect" }, h("div", { class: "group-head" }, h("h2", { text: g[1] }), h("p", { text: g[2] })), ul));
     });
-    if (rows.length) out.push(h("p", { class: "foot", text: "Scores are out of 5. Gaps of less than about " + trimNum(state.settings.tiers.first) +
+    if (rows.length) out.push(h("p", { class: "foot", text: "Each score is shown against the top of the list, which reads 100%. Gaps of less than about " + (topOf() > 0 ? Math.round(share(L.num(state.settings.tiers.first, 0), topOf())) + "%" : trimNum(state.settings.tiers.first)) +
       " are within the noise of the estimates, so treat neighbours in the list as level. Until you have viewed a property, its peace, retreat and risk scores are guesses from the listing." }));
     fill($("ov-body"), out);
   }
@@ -1308,7 +1315,7 @@ if (typeof module !== "undefined") module.exports = Logic;
     steps.forEach(function (st, i) {
       var chips = h("span", { class: "chips" });
       mentions([st.action, st.yes, st.no].join(" "), rows).forEach(function (r) {
-        chips.appendChild(h("span", { class: "chip" + (r.pos === 1 ? " good" : ""), text: (r.data.name || "") + ": " + (r.pos ? "no. " + r.pos + ", " + fmt2(r.ev.score) : r.state === "out" ? "over your maximum" : "set aside") }));
+        chips.appendChild(h("span", { class: "chip" + (r.pos === 1 ? " good" : ""), text: (r.data.name || "") + ": " + (r.pos ? "no. " + r.pos + ", " + match(r.ev.score) : r.state === "out" ? "over your maximum" : "set aside") }));
       });
       var box = h("input", { type: "checkbox", id: "step-done-" + st.id }); box.checked = !!st.done; box.disabled = !state.canWrite;
       box.addEventListener("change", function () {
@@ -1391,8 +1398,8 @@ if (typeof module !== "undefined") module.exports = Logic;
     var ruleTxt = { pass: "Within your " + gbp.format(s.budget.ceiling) + " ceiling", borderline: "Borderline: over the ceiling at the high estimate", over: "Over your " + gbp.format(s.budget.ceiling) + " ceiling" }[ev.rule];
     var link = /^https?:\/\//i.test(d.link || "") ? h("p", null, h("a", { href: d.link, target: "_blank", rel: "noopener", text: "Open the listing" })) : null;
     return h("article", { class: "panel", "data-id": r.id },
-      h("div", { class: "pf-top" }, rankBadge(r), h("span", { class: "big", text: fmt2(ev.score) }),
-        h("span", { class: "where", text: whereText(r) + (ev.best - ev.score > 0.005 ? " · " + fmt2(ev.best) + " if the work comes in low" : "") })),
+      h("div", { class: "pf-top" }, rankBadge(r), h("span", { class: "big", text: match(ev.score) }),
+        h("span", { class: "where", text: whereText(r) + (topOf() > 0 ? " · " + fmt2(ev.score) + " of 5 points" : "") + (ev.best - ev.score > 0.005 ? " · " + match(ev.best) + " if the work comes in low" : "") })),
       h("span", { class: "chips" }, budgetChip(ev), offChip(r), h("span", { class: "chip" + (d.viewed ? " good" : ""), text: d.viewed ? "Viewed" : "Not viewed" }),
         ev.measured ? null : h("span", { class: "chip", text: "Space estimated" })),
       h("p", { class: "pnote traits" }, h("b", { text: "Strong on " }), t.strong + ". ", h("b", { text: "Weak on " }), t.weak + "."),
@@ -1510,12 +1517,12 @@ if (typeof module !== "undefined") module.exports = Logic;
     var s = state.settings, w = weights(), d = readForm(), id = state.editing.id || "__new__";
     var items = state.items.filter(function (it) { return it.id !== id; }).concat([{ id: id, data: d }]);
     var rows = L.rank(items, s, w), me = rows.filter(function (r) { return r.id === id; })[0], ev = me.ev;
-    var ppp = L.poundsPerPoint(s, w), live = rows.filter(function (r) { return r.state === "in"; }).length;
-    var pos = me.state === "in" ? "Position " + me.pos + " of " + live + (me.pos === 1 ? "" : " · " + fmt2(me.gap) + " behind the top") +
-                (ev.best - ev.score > 0.005 ? " · " + fmt2(ev.best) + " if the work comes in low" : "")
+    var ppp = L.poundsPerPoint(s, w), live = rows.filter(function (r) { return r.state === "in"; }).length, top = topOf(rows);
+    var pos = me.state === "in" ? "Position " + me.pos + " of " + live + (me.pos === 1 ? "" : " · " + gapText(me.gap, top) + " behind the top") + (top > 0 ? " · " + fmt2(ev.score) + " of 5 points" : "") +
+                (ev.best - ev.score > 0.005 ? " · " + match(ev.best, top) + " if the work comes in low" : "")
             : me.state === "out" ? "Over your maximum, so left out of the ranking" : "Set aside, so left out of the ranking";
-    $("ed-live").textContent = "Score " + fmt2(ev.score) + (me.state === "in" ? " · position " + me.pos + " of " + live : "");
-    $("ed-verdict").replaceChildren(h("div", { class: "verdict-top" }, h("span", { class: "big", text: fmt2(ev.score) }), h("span", { class: "pos", text: pos })), whyGrid(ev, d, w));
+    $("ed-live").textContent = "Score " + match(ev.score, top) + (me.state === "in" ? " · position " + me.pos + " of " + live : "");
+    $("ed-verdict").replaceChildren(h("div", { class: "verdict-top" }, h("span", { class: "big", text: match(ev.score, top) }), h("span", { class: "pos", text: pos })), whyGrid(ev, d, w));
     var price = L.num(d.price, 0), std = L.sdlt(price), ftb = L.sdltFirstTime(price);
     var ruleTxt = { pass: "Within your " + gbp.format(s.budget.ceiling) + " ceiling", borderline: "Borderline: over the ceiling at the high estimate", over: "Over your " + gbp.format(s.budget.ceiling) + " ceiling" }[ev.rule];
     fillDl("ed-money", [["Price + work, all in", moneyLine(ev)], ["Against your budget", ruleTxt + (ev.overMaxAtHigh ? " and over your maximum at the high estimate" : "")],
