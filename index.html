@@ -1,0 +1,1452 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Property Shortlist</title>
+<meta name="description" content="Rank and compare the houses on your shortlist. Everything you enter stays on your own device.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0F5C4F">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..700&family=Instrument+Sans:wght@400..600&display=swap">
+<style>:root{color-scheme:light;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<style>
+/* Layout: a one-screen phone app. Four panels sit side by side and swipe; each scrolls on its own. A bottom bar switches panels; sheets rise from the bottom. */
+:root {
+  --bg: #F1F4F2; --surface: #FFFFFF; --sunk: #E7ECE9;
+  --ink: #14211D; --muted: #53625C; --line: #CFD8D3;
+  --brand: #0F5C4F; --brand-ink: #FFFFFF;
+  --good-bg: #D3ECDD; --good-ink: #0C4A2E;
+  --warn-bg: #FAE6BD; --warn-ink: #5F4200;
+  --bad-bg: #F7D8D2; --bad-ink: #84200F;
+  --focus: #1D55CF; --shade: rgb(8 16 13 / .55); --lift: rgb(8 16 13 / .22);
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1513; --surface: #17201D; --sunk: #202B27;
+    --ink: #E6EEEA; --muted: #9DB0A8; --line: #2D3B36;
+    --brand: #45C2A9; --brand-ink: #04211B;
+    --good-bg: #143C29; --good-ink: #A9E2C1;
+    --warn-bg: #46370F; --warn-ink: #F3D88C;
+    --bad-bg: #4A1C16; --bad-ink: #F4B6AC;
+    --focus: #8FB4FF; --shade: rgb(0 0 0 / .62); --lift: rgb(0 0 0 / .5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1513; --surface: #17201D; --sunk: #202B27;
+  --ink: #E6EEEA; --muted: #9DB0A8; --line: #2D3B36;
+  --brand: #45C2A9; --brand-ink: #04211B;
+  --good-bg: #143C29; --good-ink: #A9E2C1;
+  --warn-bg: #46370F; --warn-ink: #F3D88C;
+  --bad-bg: #4A1C16; --bad-ink: #F4B6AC;
+  --focus: #8FB4FF; --shade: rgb(0 0 0 / .62); --lift: rgb(0 0 0 / .5);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.45 var(--body); overflow: hidden; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+a { color: var(--brand); }
+
+/* ---------- shell ---------- */
+.app { height: 100%; max-width: 780px; margin-inline: auto; display: flex; flex-direction: column; position: relative; }
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px 8px; }
+.bar h1 { font: 700 24px/1.1 var(--display); letter-spacing: -0.02em; margin: 0; }
+.summary { color: var(--muted); margin: 2px 0 0; font-size: 14px; }
+.iconbtn { border: 1.5px solid var(--line); background: var(--surface); border-radius: 12px; min-height: 44px; padding: 0 12px; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; cursor: pointer; flex: none; }
+svg.ic { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.banner { background: var(--warn-bg); color: var(--warn-ink); border-radius: 10px; padding: 10px 14px; margin: 0 16px 8px; }
+.pager { flex: 1; min-height: 0; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; }
+.pager::-webkit-scrollbar { display: none; }
+.panel { flex: 0 0 100%; min-width: 0; overflow-x: hidden; overflow-y: auto; scroll-snap-align: start; scroll-snap-stop: always; padding: 8px 16px 104px; display: flex; flex-direction: column; gap: 14px; }
+.panel > *, .stack > * { flex: none; }
+.stack { display: flex; flex-direction: column; gap: 14px; }
+.tabbar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--surface); border-top: 1px solid var(--line); }
+.tabbar button { border: 0; background: none; min-height: 58px; padding: 7px 4px 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; position: relative; }
+.tabbar button[aria-selected="true"] { color: var(--brand); }
+.tabbar button[aria-selected="true"]::before { content: ""; position: absolute; top: -1px; left: 22%; right: 22%; height: 3px; border-radius: 0 0 3px 3px; background: var(--brand); }
+.fab { position: absolute; right: 16px; bottom: 74px; border: 0; border-radius: 28px; background: var(--ink); color: var(--bg); font-weight: 600; padding: 0 20px 0 14px; min-height: 52px; display: inline-flex; gap: 6px; align-items: center; box-shadow: 0 6px 18px var(--lift); cursor: pointer; }
+@media (min-width: 780px) {
+  .bar { order: 0; padding-top: 20px; }
+  .tabbar { order: 1; display: flex; gap: 4px; background: none; border-top: 0; border-bottom: 1.5px solid var(--line); margin-inline: 16px; }
+  .tabbar button { flex-direction: row; gap: 8px; min-height: 46px; padding: 8px 14px; font-size: 15px; }
+  .tabbar button[aria-selected="true"]::before { top: auto; bottom: -1.5px; left: 0; right: 0; border-radius: 3px 3px 0 0; }
+  .banner { order: 2; margin-top: 8px; }
+  .pager { order: 3; }
+  .panel { padding-top: 16px; }
+  .fab { bottom: 20px; }
+}
+
+/* ---------- shared pieces ---------- */
+.btn { border: 1.5px solid var(--line); background: var(--surface); border-radius: 10px; padding: 10px 14px; min-height: 44px; font-weight: 600; cursor: pointer; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.small { min-height: 36px; padding: 6px 12px; font-size: 14px; }
+.btn.danger { color: var(--bad-ink); }
+.btn[disabled] { opacity: .5; cursor: default; }
+.hscroll { display: flex; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; margin-inline: -16px; padding: 2px 16px; scroll-padding-inline: 16px; }
+.hscroll::-webkit-scrollbar { display: none; }
+.hscroll > * { flex: none; }
+.pill { position: relative; }
+.pill input { position: absolute; opacity: 0; inset: 0; }
+.pill span { display: block; padding: 9px 15px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.pill input:checked + span { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.pill input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 2px; }
+.lead, .foot { color: var(--muted); font-size: 14px; max-width: 70ch; margin: 0; }
+.foot { font-size: 13.5px; }
+.group-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; padding-inline: 2px; }
+.group-head h2, .sect > h2 { font: 600 19px/1.2 var(--display); margin: 0; }
+.group-head p { margin: 0; color: var(--muted); font-size: 14px; }
+.sect { display: flex; flex-direction: column; gap: 8px; }
+.cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 12.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--sunk); color: var(--muted); }
+.chip.good { background: var(--good-bg); color: var(--good-ink); }
+.chip.warn { background: var(--warn-bg); color: var(--warn-ink); }
+.chip.bad { background: var(--bad-bg); color: var(--bad-ink); }
+.rank { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font: 600 15px/1 var(--display); font-variant-numeric: tabular-nums; background: var(--sunk); color: var(--ink); flex: none; }
+.rank.lead1 { background: var(--brand); color: var(--brand-ink); }
+.rank.off { background: transparent; border: 1.5px dashed var(--line); color: var(--muted); }
+.empty { background: var(--surface); border: 1.5px dashed var(--line); border-radius: 14px; padding: 28px 20px; text-align: center; color: var(--muted); }
+.empty strong { display: block; color: var(--ink); font: 600 20px/1.3 var(--display); margin-bottom: 6px; }
+.meter { width: 58px; height: 5px; border-radius: 3px; background: var(--sunk); overflow: hidden; display: block; }
+.meter > span { display: block; height: 100%; background: var(--brand); border-radius: 3px; }
+
+/* ---------- overview rows ---------- */
+.card { width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; cursor: pointer;
+  display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 4px 12px; align-items: start; }
+.card:active { background: var(--sunk); }
+.card-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.card-name { font: 600 18px/1.2 var(--display); overflow-wrap: anywhere; }
+.card-sub { color: var(--muted); font-size: 14px; }
+.card-score { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 58px; }
+.card-score .num { font: 700 25px/1 var(--display); font-variant-numeric: tabular-nums; }
+.card-score .of { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.card-body { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; min-width: 0; margin-top: 6px; font-size: 14px; }
+.card-body .key { font-variant-numeric: tabular-nums; }
+.traits b { font-weight: 600; }
+
+/* ---------- commute and market cards ---------- */
+.pcard { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.pcard-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.namebtn { border: 0; background: none; padding: 4px 0; min-height: 36px; font: 600 17px/1.2 var(--display); text-align: left; cursor: pointer; color: var(--ink); overflow-wrap: anywhere; flex: 1; min-width: 0; }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
+@media (min-width: 560px) { .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.stat { min-width: 0; }
+.stat small { display: block; color: var(--muted); font-size: 12.5px; line-height: 1.3; }
+.stat b { font: 600 17px/1.25 var(--display); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.pnote { font-size: 14px; margin: 0; }
+.pnote b { font-weight: 600; }
+.assume { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; background: var(--sunk); border-radius: 12px; padding: 12px 14px; font-size: 14px; }
+.assume p { margin: 0; flex: 1 1 240px; min-width: 0; }
+.dcard { width: min(78vw, 290px); scroll-snap-align: start; }
+.snapx { scroll-snap-type: x proximity; }
+
+/* ---------- plan ---------- */
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.step { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; }
+.step.done { opacity: .7; }
+.step-main { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.step-main p { margin: 0; }
+.branch { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 6px 16px; font-size: 14.5px; }
+.branch b { font-weight: 600; }
+.step-foot { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; }
+.donebox { display: inline-flex; gap: 8px; align-items: center; font-weight: 600; font-size: 14.5px; min-height: 44px; }
+.donebox input { width: 24px; height: 24px; accent-color: var(--brand); }
+.notes { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.notes ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.notes h2 { font: 600 17px/1.2 var(--display); margin: 0; }
+
+/* ---------- sheets ---------- */
+dialog { border: 0; padding: 0; background: var(--surface); color: var(--ink); width: min(720px, 100%); max-width: 100%; max-height: calc(100% - 32px); border-radius: 18px; overflow: hidden; transition: transform .18s ease; }
+dialog[open] { display: flex; flex-direction: column; }
+dialog.tall[open] { height: calc(100% - 32px); }
+dialog::backdrop { background: var(--shade); }
+@media (max-width: 640px) {
+  dialog { width: 100%; margin: auto 0 0; max-height: 94%; border-radius: 20px 20px 0 0; }
+  dialog.tall[open] { height: 94%; }
+}
+@media (prefers-reduced-motion: reduce) { dialog { transition: none; } }
+.grab { height: 26px; display: grid; place-items: center; touch-action: none; cursor: grab; flex: none; }
+.grab::before { content: ""; width: 44px; height: 5px; border-radius: 3px; background: var(--line); }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 2px 16px 12px; border-bottom: 1px solid var(--line); flex: none; }
+.sheet-head h2 { font: 600 20px/1.2 var(--display); margin: 0; overflow-wrap: anywhere; }
+.sheet-head p { margin: 2px 0 0; color: var(--muted); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.x { border: 0; background: var(--sunk); width: 44px; height: 44px; border-radius: 50%; cursor: pointer; font-size: 20px; line-height: 1; flex: none; }
+.jump { border-bottom: 1px solid var(--line); padding-block: 8px; margin-inline: 0; flex: none; }
+.jchip { border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 7px 13px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.sheet-body { overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 22px; flex: 1; min-height: 0; }
+.sheet-body > * { flex: none; }
+.sheet-foot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); background: var(--surface); flex: none; }
+.sheet-foot .right { display: flex; gap: 8px; margin-left: auto; }
+.msg { font-size: 14px; color: var(--bad-ink); flex-basis: 100%; margin: 0; }
+.msg:empty { display: none; }
+.pf-pager { flex: 1; min-height: 0; }
+.pf-pager .panel { padding: 14px 16px 28px; gap: 18px; }
+.pf-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pf-top .big { font: 700 36px/1 var(--display); font-variant-numeric: tabular-nums; }
+.pf-top .where { color: var(--muted); font-size: 14.5px; }
+.pf-sec { display: flex; flex-direction: column; gap: 8px; }
+.pf-sec h3 { font: 600 17px/1.2 var(--display); margin: 0; }
+.pf-sec p { margin: 0; font-size: 14.5px; }
+.verdict { background: var(--sunk); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.verdict-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+.verdict-top .big { font: 700 34px/1 var(--display); font-variant-numeric: tabular-nums; }
+.verdict-top .pos { color: var(--muted); font-size: 14.5px; }
+.why { display: grid; grid-template-columns: minmax(0, 1fr) 72px 32px; gap: 6px 10px; align-items: center; font-size: 14px; margin: 0; }
+.why .lab { min-width: 0; }
+.why .lab small { color: var(--muted); }
+.why .bar2 { height: 6px; background: var(--surface); border-radius: 3px; overflow: hidden; }
+.why .bar2 > span { display: block; height: 100%; background: var(--brand); }
+.why .val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.why .offrow { color: var(--warn-ink); grid-column: 1 / 3; }
+.why .offval { text-align: right; font-weight: 600; color: var(--warn-ink); font-variant-numeric: tabular-nums; }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+legend { font: 600 17px/1.2 var(--display); padding: 0; margin-bottom: 10px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field > label, .field > .lbl { font-weight: 600; font-size: 14.5px; }
+.field input[type="text"], .field input[type="url"], .field input[type="number"], .field select, .field textarea {
+  width: 100%; min-height: 46px; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--surface); }
+.field textarea { min-height: 84px; resize: vertical; }
+.field input[type="range"] { width: 100%; accent-color: var(--brand); min-height: 36px; }
+.hint { color: var(--muted); font-size: 13.5px; }
+.rangehead { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.rangehead output { font: 600 18px/1 var(--display); font-variant-numeric: tabular-nums; }
+.check { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; align-items: start; padding: 8px 0; }
+.check input { width: 24px; height: 24px; margin: 0; accent-color: var(--brand); }
+.check b { font-weight: 600; display: block; }
+.money { background: var(--sunk); border-radius: 12px; padding: 12px 14px; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 8px 14px; font-size: 14.5px; margin: 0; }
+.money dt { color: var(--muted); }
+.money dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; overflow-wrap: anywhere; }
+#st-weights, #st-districts { display: flex; flex-direction: column; gap: 16px; }
+.confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+details.acc { border: 1px solid var(--line); border-radius: 14px; padding: 0 14px; }
+details.acc > summary { cursor: pointer; font: 600 17px/1.2 var(--display); padding: 15px 0; min-height: 44px; }
+details.acc[open] { padding-bottom: 14px; }
+details.acc[open] > summary { margin-bottom: 4px; }
+.sheet-body.tight { gap: 10px; }
+.subhead { font-weight: 600; margin: 4px 0 0; }
+</style>
+
+<div class="app">
+  <header class="bar">
+    <div>
+      <h1>Property Shortlist</h1>
+      <p class="summary" id="summary">Loading your shortlist…</p>
+    </div>
+    <button class="iconbtn" id="btn-settings" type="button" hidden>
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+      <span>What matters</span>
+    </button>
+  </header>
+  <div class="banner" id="banner" hidden></div>
+
+  <div class="pager" id="pager">
+    <section class="panel" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
+      <div id="notice-slot"></div>
+      <div class="stack" id="ov-body" aria-live="polite">
+        <div class="empty"><strong>Loading your shortlist…</strong>Your properties appear here in ranked order. Swipe sideways for commute costs, market figures and your plan.</div>
+      </div>
+    </section>
+    <section class="panel" id="panel-commute" role="tabpanel" aria-labelledby="tab-commute"></section>
+    <section class="panel" id="panel-market" role="tabpanel" aria-labelledby="tab-market"></section>
+    <section class="panel" id="panel-plan" role="tabpanel" aria-labelledby="tab-plan"></section>
+  </div>
+
+  <button class="fab" id="btn-add" type="button" hidden>
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add a property</span>
+  </button>
+
+  <nav class="tabbar" id="tabs" role="tablist" aria-label="Sections">
+    <button type="button" role="tab" id="tab-overview" data-view="overview" aria-selected="true">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg><span>Overview</span></button>
+    <button type="button" role="tab" id="tab-commute" data-view="commute" aria-selected="false">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="16" r="3.5"/><circle cx="18" cy="16" r="3.5"/><path d="M6 16l4-8h5l3 8M10 8l4 8M9 5.5h3"/></svg><span>Commute</span></button>
+    <button type="button" role="tab" id="tab-market" data-view="market" aria-selected="false">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M5 15l4.5-4.5 3 3L19 7"/><path d="M15 7h4v4"/></svg><span>Market</span></button>
+    <button type="button" role="tab" id="tab-plan" data-view="plan" aria-selected="false">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7l1.5 1.5L8.5 6M4.5 13l1.5 1.5L8.5 12M4.5 19l1.5 1.5L8.5 18M12 7h8M12 13h8M12 19h8"/></svg><span>Plan</span></button>
+  </nav>
+</div>
+
+<!-- ============ property profile: swipe sideways between properties ============ -->
+<dialog id="profile" class="tall" aria-labelledby="pf-title">
+  <div class="grab" id="pf-grab" aria-hidden="true"></div>
+  <div class="sheet-head"><div><h2 id="pf-title">Property</h2><p id="pf-count"></p></div><button class="x" type="button" id="pf-close" aria-label="Close">×</button></div>
+  <div class="pager pf-pager" id="pf-pager"></div>
+  <div class="sheet-foot">
+    <p class="msg" id="pf-msg" role="alert"></p>
+    <div class="confirm"><button class="btn" type="button" id="pf-prev" aria-label="Previous property">‹</button><button class="btn" type="button" id="pf-next" aria-label="Next property">›</button></div>
+    <div class="right"><button class="btn" type="button" id="pf-viewed">Mark as viewed</button><button class="btn primary" type="button" id="pf-edit">Edit</button></div>
+  </div>
+</dialog>
+
+<!-- ============ property edit sheet ============ -->
+<dialog id="editor" class="tall" aria-labelledby="ed-title">
+  <div class="grab" id="ed-grab" aria-hidden="true"></div>
+  <div class="sheet-head"><div><h2 id="ed-title">Property</h2><p id="ed-live" aria-live="polite"></p></div><button class="x" type="button" id="ed-close" aria-label="Close">×</button></div>
+  <div class="hscroll jump" id="ed-jump" role="group" aria-label="Jump to a section">
+    <button class="jchip" type="button" data-target="sec-basics">Basics</button>
+    <button class="jchip" type="button" data-target="sec-money">Money</button>
+    <button class="jchip" type="button" data-target="sec-around">Getting around</button>
+    <button class="jchip" type="button" data-target="sec-home">The home</button>
+    <button class="jchip" type="button" data-target="sec-market">Market</button>
+    <button class="jchip" type="button" data-target="sec-drawbacks">Drawbacks</button>
+    <button class="jchip" type="button" data-target="sec-status">Status</button>
+  </div>
+  <form class="sheet-body" id="ed-form" novalidate>
+    <section class="verdict" id="ed-verdict" aria-live="polite"></section>
+
+    <fieldset id="sec-basics"><legend>The basics</legend>
+      <div class="grid2">
+        <div class="field"><label for="f-name">Name or street</label><input type="text" id="f-name" autocomplete="off" required></div>
+        <div class="field"><label for="f-place">Village or town</label><input type="text" id="f-place" autocomplete="off"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="f-type">Type</label><input type="text" id="f-type" placeholder="e.g. 3-bed end of terrace" autocomplete="off"></div>
+        <div class="field"><label for="f-link">Listing link</label><input type="url" id="f-link" placeholder="https://" autocomplete="off"><span class="hint" id="f-link-open"></span></div>
+      </div>
+      <div class="field"><label for="f-notes">Notes and questions for the agent</label><textarea id="f-notes"></textarea></div>
+    </fieldset>
+
+    <fieldset id="sec-money"><legend>Money</legend>
+      <div class="grid2">
+        <div class="field"><label for="f-price">Price you would pay (£)</label><input type="number" id="f-price" inputmode="numeric" min="0" step="500"><span class="hint">Your target offer. This is the figure that is scored.</span></div>
+        <div class="field"><label for="f-asking">Asking or guide price (£)</label><input type="number" id="f-asking" inputmode="numeric" min="0" step="500"><span class="hint">For reference only.</span></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="f-worklow">Work needed, low estimate (£)</label><input type="number" id="f-worklow" inputmode="numeric" min="0" step="500"></div>
+        <div class="field"><label for="f-workhigh">Work needed, high estimate (£)</label><input type="number" id="f-workhigh" inputmode="numeric" min="0" step="500"><span class="hint">Cost is scored on the high estimate.</span></div>
+      </div>
+      <dl class="money" id="ed-money"></dl>
+    </fieldset>
+
+    <fieldset id="sec-around"><legend>Getting around</legend>
+      <div class="grid2">
+        <div class="field"><label for="f-cycle">Safe cycle route to Beckley (miles)</label><input type="number" id="f-cycle" inputmode="decimal" min="0" step="0.1"><span class="hint" id="f-route"></span></div>
+        <div class="field"><label for="f-cycleadj">How safe is that route?</label>
+          <select id="f-cycleadj"><option value="0">Fine</option><option value="-1">Unsafe stretches (1 point off)</option><option value="-2">Unsafe (2 points off)</option></select></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="f-drive">Driving distance to Beckley (miles)</label><input type="number" id="f-drive" inputmode="decimal" min="0" step="0.1"><span class="hint">Used for fuel costs only, not for the score.</span></div>
+        <div class="field"><label for="f-famA">To family at Hanborough Pavilion (miles)</label><input type="number" id="f-famA" inputmode="decimal" min="0" step="0.1"></div>
+      </div>
+      <div class="field"><label for="f-famB">To family at North Oxford Tennis Club (miles)</label><input type="number" id="f-famB" inputmode="decimal" min="0" step="0.1"></div>
+      <dl class="money" id="ed-commute"></dl>
+    </fieldset>
+
+    <fieldset id="sec-home"><legend>The home</legend>
+      <div class="field"><label for="f-area">Floor area (m²)</label><input type="number" id="f-area" inputmode="decimal" min="0" step="0.1"><span class="hint">From the agent or the EPC certificate. Leave blank if you don't know it yet and use the estimate below.</span></div>
+      <div class="field" id="wrap-spaceest"><div class="rangehead"><label for="f-spaceest">Space, your estimate</label><output id="o-spaceest" for="f-spaceest"></output></div><input type="range" id="f-spaceest" min="1" max="5" step="0.5"><span class="hint" id="g-spaceest"></span></div>
+      <div class="field"><div class="rangehead"><label for="f-peace">Peace and countryside</label><output id="o-peace" for="f-peace"></output></div><input type="range" id="f-peace" min="1" max="5" step="0.5"><span class="hint" id="g-peace"></span></div>
+      <div class="field"><div class="rangehead"><label for="f-retreat">Retreat space</label><output id="o-retreat" for="f-retreat"></output></div><input type="range" id="f-retreat" min="1" max="5" step="0.5"><span class="hint" id="g-retreat"></span></div>
+      <div class="field"><div class="rangehead"><label for="f-risk">Low risk, little work</label><output id="o-risk" for="f-risk"></output></div><input type="range" id="f-risk" min="1" max="5" step="0.5"><span class="hint" id="g-risk"></span></div>
+    </fieldset>
+
+    <fieldset id="sec-market"><legend>Market and resale</legend>
+      <span class="hint">A guide to fair price and resilience, not a forecast. None of this affects the score.</span>
+      <div class="grid2">
+        <div class="field"><label for="f-district">District</label><select id="f-district"></select></div>
+        <div class="field"><label for="f-mtype">Counts in the market as</label>
+          <select id="f-mtype"><option value="other">House (terraced, detached or other)</option><option value="semi">Semi-detached</option><option value="flat">Flat</option></select></div>
+      </div>
+      <dl class="money" id="ed-market"></dl>
+      <div class="grid2">
+        <div class="field"><label for="f-outlook">Outlook</label>
+          <select id="f-outlook"><option value="">Not judged yet</option><option>Stronger</option><option>Steady</option><option>Mixed</option></select></div>
+        <div class="field"><label for="f-outlooknote">Outlook, in a few words</label><input type="text" id="f-outlooknote" autocomplete="off"></div>
+      </div>
+      <div class="field"><label for="f-valueadd">Value you could add</label><textarea id="f-valueadd"></textarea></div>
+      <div class="field"><label for="f-local">Local factors, up and down</label><textarea id="f-local"></textarea></div>
+    </fieldset>
+
+    <fieldset id="sec-drawbacks"><legend>Drawbacks</legend>
+      <span class="hint">A drawback takes points off the score. It never removes a property.</span>
+      <label class="check"><input type="checkbox" id="f-flat"><span><b>Flat in a shared building</b><span class="hint" id="h-flat"></span></span></label>
+      <label class="check"><input type="checkbox" id="f-isolated"><span><b>Too isolated for you</b><span class="hint" id="h-isolated"></span></span></label>
+      <div class="grid2">
+        <div class="field"><label for="f-otheroff">Anything else, points off</label><input type="number" id="f-otheroff" inputmode="decimal" min="0" max="5" step="0.05"><span class="hint" id="h-otheroff"></span></div>
+        <div class="field"><label for="f-otherreason">Why</label><input type="text" id="f-otherreason" autocomplete="off"></div>
+      </div>
+    </fieldset>
+
+    <fieldset id="sec-status"><legend>Where it stands</legend>
+      <label class="check"><input type="checkbox" id="f-viewed"><span><b>I have viewed it</b><span class="hint">Tick once you have seen it and reset the scores above.</span></span></label>
+      <label class="check"><input type="checkbox" id="f-aside"><span><b>Set aside</b><span class="hint">Keeps the record but leaves it out of the ranking.</span></span></label>
+      <div class="field" id="wrap-asidereason"><label for="f-asidereason">Why it is set aside</label><input type="text" id="f-asidereason" autocomplete="off"></div>
+    </fieldset>
+  </form>
+  <div class="sheet-foot">
+    <p class="msg" id="ed-msg" role="alert"></p>
+    <div class="confirm" id="ed-remove-wrap">
+      <button class="btn danger" type="button" id="ed-remove">Remove</button>
+      <span id="ed-confirm" hidden>Remove for good? <button class="btn danger" type="button" id="ed-remove-yes">Yes, remove</button> <button class="btn" type="button" id="ed-remove-no">Keep</button></span>
+    </div>
+    <div class="right"><button class="btn" type="button" id="ed-cancel">Cancel</button><button class="btn primary" type="button" id="ed-save">Save</button></div>
+  </div>
+</dialog>
+
+<!-- ============ settings sheet ============ -->
+<dialog id="settings" class="tall" aria-labelledby="st-title">
+  <div class="grab" id="st-grab" aria-hidden="true"></div>
+  <div class="sheet-head"><h2 id="st-title">What matters to you</h2><button class="x" type="button" id="st-close" aria-label="Close">×</button></div>
+  <form class="sheet-body tight" id="st-form" novalidate>
+    <details class="acc" id="acc-weights"><summary>How much each thing counts</summary><fieldset>
+      <span class="hint">Slide up what matters more. The shares are worked out from the total, so they need not add up to 100. "Really pulls" shows how much each one moves your ranking with the properties you have now.</span>
+      <div id="st-weights"></div>
+    </fieldset></details>
+
+    <details class="acc" id="acc-off"><summary>Drawbacks: points off</summary><fieldset>
+      <span class="hint" id="st-yard"></span>
+      <div class="grid2">
+        <div class="field"><label for="s-off-flat">Flat in a shared building</label><input type="number" id="s-off-flat" inputmode="decimal" min="0" max="5" step="0.05"><span class="hint" id="s-off-flat-gbp"></span></div>
+        <div class="field"><label for="s-off-isolated">Too isolated</label><input type="number" id="s-off-isolated" inputmode="decimal" min="0" max="5" step="0.05"><span class="hint" id="s-off-isolated-gbp"></span></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="s-off-drive">Driving-only commute</label><input type="number" id="s-off-drive" inputmode="decimal" min="0" max="5" step="0.05"><span class="hint" id="s-off-drive-gbp"></span></div>
+        <div class="field"><label for="s-off-drivekm">Counts as driving-only beyond (miles)</label><input type="number" id="s-off-drivekm" inputmode="decimal" min="0" step="0.1"><span class="hint">The cycle score already marks long routes down, so this starts at 0.</span></div>
+      </div>
+    </fieldset></details>
+
+    <details class="acc" id="acc-budget"><summary>Budget</summary><fieldset>
+      <div class="grid2">
+        <div class="field"><label for="s-ceiling">Comfortable ceiling, price + work (£)</label><input type="number" id="s-ceiling" inputmode="numeric" min="0" step="1000"></div>
+        <div class="field"><label for="s-max">Absolute maximum (£)</label><input type="number" id="s-max" inputmode="numeric" min="0" step="1000"></div>
+      </div>
+      <label class="check"><input type="checkbox" id="s-hard"><span><b>Leave out anything over the maximum</b><span class="hint">Only when price + work is over even at the low work estimate. This is the one thing that removes a property from the ranking.</span></span></label>
+      <div class="field"><label for="s-invoice">Other costs due on completion (£)</label><input type="number" id="s-invoice" inputmode="numeric" min="0" step="100"><span class="hint">Added to the cash you need on completion.</span></div>
+    </fieldset></details>
+
+    <details class="acc" id="st-commute"><summary>Commute and fuel</summary><fieldset>
+      <div class="grid2">
+        <div class="field"><label for="s-c-mph">E-bike speed (mph)</label><input type="number" id="s-c-mph" inputmode="decimal" min="1" step="0.5"><span class="hint">UK e-bike assistance cuts out at 15.5 mph, so real averages are often lower.</span></div>
+        <div class="field"><label for="s-c-buffer">Extra time for junctions and hills (%)</label><input type="number" id="s-c-buffer" inputmode="decimal" min="0" step="1"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="s-c-days">Working days a year</label><input type="number" id="s-c-days" inputmode="numeric" min="0" step="1"></div>
+        <div class="field"><label for="s-c-mpg">Car fuel economy (mpg, UK gallons)</label><input type="number" id="s-c-mpg" inputmode="decimal" min="1" step="1"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="s-c-fuel">Fuel price now (£ a litre)</label><input type="number" id="s-c-fuel" inputmode="decimal" min="0" step="0.01"></div>
+        <div class="field"><label for="s-c-running">Other running costs (£ a mile)</label><input type="number" id="s-c-running" inputmode="decimal" min="0" step="0.01"><span class="hint">Tyres, servicing and wear. Set to 0 for fuel only.</span></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="s-c-g-stable">Prices hold: yearly change (%)</label><input type="number" id="s-c-g-stable" inputmode="decimal" step="0.5"></div>
+        <div class="field"><label for="s-c-g-trend">Oxford trend: yearly change (%)</label><input type="number" id="s-c-g-trend" inputmode="decimal" step="0.5"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="s-c-g-high">High: yearly change (%)</label><input type="number" id="s-c-g-high" inputmode="decimal" step="0.5"></div>
+        <div class="field"><label for="s-c-years">Years to project</label><input type="number" id="s-c-years" inputmode="numeric" min="1" max="30" step="1"></div>
+      </div>
+    </fieldset></details>
+
+    <details class="acc" id="st-adv"><summary>How the measured scores work</summary>
+      <fieldset>
+        <span class="hint">Each of these scores 5 at the first figure and 1 at the second, sliding in a straight line in between.</span>
+        <div class="grid2">
+          <div class="field"><label for="s-cost-best">Cost scores 5 at (£)</label><input type="number" id="s-cost-best" inputmode="numeric" min="0" step="5000"><span class="hint">Savings below this earn nothing extra. Lower it to make them count.</span></div>
+          <div class="field"><label for="s-cost-worst">Cost scores 1 at (£)</label><input type="number" id="s-cost-worst" inputmode="numeric" min="0" step="5000"></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label for="s-cycle-best">Cycle scores 5 at (miles)</label><input type="number" id="s-cycle-best" inputmode="decimal" min="0" step="0.1"></div>
+          <div class="field"><label for="s-cycle-worst">Cycle scores 1 at (miles)</label><input type="number" id="s-cycle-worst" inputmode="decimal" min="0" step="0.1"></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label for="s-famA-best">Near Hanborough Pavilion scores 5 at (miles)</label><input type="number" id="s-famA-best" inputmode="decimal" min="0" step="0.1"></div>
+          <div class="field"><label for="s-famA-worst">Near Hanborough Pavilion scores 1 at (miles)</label><input type="number" id="s-famA-worst" inputmode="decimal" min="0" step="0.1"></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label for="s-famB-best">Near North Oxford Tennis Club scores 5 at (miles)</label><input type="number" id="s-famB-best" inputmode="decimal" min="0" step="0.1"></div>
+          <div class="field"><label for="s-famB-worst">Near North Oxford Tennis Club scores 1 at (miles)</label><input type="number" id="s-famB-worst" inputmode="decimal" min="0" step="0.1"></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label for="s-space-best">Space scores 5 at (m²)</label><input type="number" id="s-space-best" inputmode="decimal" min="0" step="5"></div>
+          <div class="field"><label for="s-space-worst">Space scores 1 at (m²)</label><input type="number" id="s-space-worst" inputmode="decimal" min="0" step="5"></div>
+        </div>
+        <div class="field"><label for="s-tier-first">Treat scores as level when they are within</label><input type="number" id="s-tier-first" inputmode="decimal" min="0" step="0.05"><span class="hint">Gaps smaller than this are within the noise of the estimates.</span></div>
+      </fieldset>
+    </details>
+
+    <details class="acc" id="st-mkt"><summary>Local market figures</summary>
+      <fieldset>
+        <span class="hint">Yearly price changes as percentages. Leave a box empty where you have no figure.</span>
+        <div id="st-districts"></div>
+      </fieldset>
+    </details>
+  </form>
+  <div class="sheet-foot">
+    <p class="msg" id="st-msg" role="alert"></p>
+    <div class="right"><button class="btn" type="button" id="st-cancel">Cancel</button><button class="btn primary" type="button" id="st-save">Save</button></div>
+  </div>
+</dialog>
+
+<!-- ============ plan step sheet ============ -->
+<dialog id="stepdlg" aria-labelledby="sp-title">
+  <div class="grab" id="sp-grab" aria-hidden="true"></div>
+  <div class="sheet-head"><h2 id="sp-title">Step</h2><button class="x" type="button" id="sp-close" aria-label="Close">×</button></div>
+  <form class="sheet-body" id="sp-form" novalidate>
+    <div class="field"><label for="p-action">What to do</label><textarea id="p-action"></textarea><span class="hint">Mention a property by name and its place in the ranking shows beside the step.</span></div>
+    <div class="field"><label for="p-yes">If yes</label><textarea id="p-yes"></textarea></div>
+    <div class="field"><label for="p-no">If no</label><textarea id="p-no"></textarea></div>
+    <div class="confirm" id="sp-move"><button class="btn small" type="button" id="sp-up">Move earlier</button><button class="btn small" type="button" id="sp-down">Move later</button></div>
+  </form>
+  <div class="sheet-foot">
+    <p class="msg" id="sp-msg" role="alert"></p>
+    <div class="confirm" id="sp-remove-wrap">
+      <button class="btn danger" type="button" id="sp-remove">Remove step</button>
+      <span id="sp-confirm" hidden>Remove this step? <button class="btn danger" type="button" id="sp-remove-yes">Yes, remove</button> <button class="btn" type="button" id="sp-remove-no">Keep</button></span>
+    </div>
+    <div class="right"><button class="btn" type="button" id="sp-cancel">Cancel</button><button class="btn primary" type="button" id="sp-save">Save</button></div>
+  </div>
+</dialog>
+
+<dialog id="remdlg" aria-labelledby="rm-title">
+  <div class="grab" id="rm-grab" aria-hidden="true"></div>
+  <div class="sheet-head"><h2 id="rm-title">Reminders</h2><button class="x" type="button" id="rm-close" aria-label="Close">×</button></div>
+  <form class="sheet-body" id="rm-form" novalidate>
+    <div class="field"><label for="p-reminders">One reminder on each line</label><textarea id="p-reminders" style="min-height:180px"></textarea></div>
+  </form>
+  <div class="sheet-foot">
+    <p class="msg" id="rm-msg" role="alert"></p>
+    <div class="right"><button class="btn" type="button" id="rm-cancel">Cancel</button><button class="btn primary" type="button" id="rm-save">Save</button></div>
+  </div>
+</dialog>
+
+
+<script>
+/* Keeps every record in this browser, on this device. Nothing is sent anywhere. */
+(function () {
+  var KEY = "property-shortlist-v1", SEED = {"properties": {}, "settings": {"main": {"districts": {"cherwell": {"annualChange": 0.047, "avgPrice": 357000, "flatChange": 0.017, "medianPerM2": 4060, "name": "Cherwell", "order": 1, "semiChange": 0.056, "source": "ONS/Land Registry HPI July 2026; £/m² housemetric (Jun 2026)"}, "oxford": {"annualChange": -0.023, "avgPrice": 472000, "flatChange": -0.052, "medianPerM2": null, "name": "Oxford", "order": 4, "semiChange": 0, "source": "ONS/Land Registry HPI July 2026; £/m² not found – add if known"}, "south-oxfordshire": {"annualChange": 0.03, "avgPrice": 476000, "flatChange": null, "medianPerM2": 4910, "name": "South Oxfordshire", "order": 2, "semiChange": null, "source": "ONS/Land Registry HPI July 2026; £/m² housemetric (Jun 2026)"}, "west-oxfordshire": {"annualChange": -0.024, "avgPrice": 417000, "flatChange": -0.053, "medianPerM2": null, "name": "West Oxfordshire", "order": 3, "semiChange": -0.015, "source": "ONS/Land Registry HPI May 2026; £/m² not found – add if known"}}}}, "plan": {"main": {"steps": [], "reminders": ""}}, "units": "miles"}, subs = [], canStore = true, data = null;
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function valid(d) { return d && typeof d === "object" && d.properties && typeof d.properties === "object" && d.settings && d.plan; }
+  try { var raw = localStorage.getItem(KEY); if (raw) { var parsed = JSON.parse(raw); if (valid(parsed)) data = parsed; } } catch (e) { canStore = false; }
+  if (!data) data = clone(SEED);
+  /* older copies and backups wrote distances in notes as km: convert them once */
+  function kmText(t) {
+    if (typeof t !== "string" || t.indexOf("km") < 0) return t;
+    var f = function (x) { return String(Math.round(Number(x) / 1.609 * 10) / 10); };
+    return t.replace(/(\d+(?:\.\d+)?)(?:\s*([–-])\s*(\d+(?:\.\d+)?))?\s*km\b(?!\/h)/g, function (m, a, sep, b) { return b ? f(a) + sep + f(b) + " miles" : f(a) + (f(a) === "1" ? " mile" : " miles"); });
+  }
+  function walk(o) { if (typeof o === "string") return kmText(o); if (Array.isArray(o)) return o.map(walk); if (o && typeof o === "object") { var r = {}; for (var k in o) r[k] = walk(o[k]); return r; } return o; }
+  function toMiles(d) { if (d.units !== "miles") { d.properties = walk(d.properties); d.plan = walk(d.plan); d.units = "miles"; } return d; }
+  function rename(o, a, b) { if (o && typeof o === "object" && a in o) { if (!(b in o)) o[b] = o[a]; delete o[a]; } }
+  function modern(d) {
+    var A = "d" + "ad", B = "b" + "ro", p, k, s = d.settings && d.settings.main;
+    for (k in d.properties) { p = d.properties[k]; rename(p, A + "Km", "famAKm"); rename(p, B + "Km", "famBKm"); }
+    if (s) [s.weights, s.scales, s.presets && s.presets.countryside, s.presets && s.presets.cyclecost].forEach(function (o) { rename(o, A, "famA"); rename(o, B, "famB"); });
+    return d;
+  }
+  data = modern(toMiles(data));
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+  function persist() { try { localStorage.setItem(KEY, JSON.stringify(data)); canStore = true; } catch (e) { canStore = false; } note(); }
+  function fire() { subs.forEach(function (fn) { fn(); }); }
+  function snap(id, d) { return { id: id, exists: !!d, data: function () { return d ? clone(d) : undefined; }, metadata: { fromCache: false, hasPendingWrites: false } }; }
+  function doc(col, id) {
+    return {
+      id: id, path: col + "/" + id,
+      get: function () { return Promise.resolve(snap(id, (data[col] || {})[id])); },
+      set: function (d) { if (!data[col]) data[col] = {}; data[col][id] = clone(d); persist(); fire(); return Promise.resolve(); },
+      update: function (d) { if (!data[col] || !data[col][id]) return Promise.reject({ code: "invalid_argument" }); for (var k in d) data[col][id][k] = clone(d[k]); persist(); fire(); return Promise.resolve(); },
+      delete: function () { if (data[col]) delete data[col][id]; persist(); fire(); return Promise.resolve(); },
+      onSnapshot: function (next) { var fn = function () { next(snap(id, (data[col] || {})[id])); }; subs.push(fn); setTimeout(fn, 0); return function () {}; }
+    };
+  }
+  var db = {
+    doc: function (path) { var p = path.split("/"); return doc(p[0], p[1]); },
+    collection: function (col) {
+      return {
+        path: col,
+        doc: function (id) { return doc(col, id || "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)); },
+        onSnapshot: function (next) {
+          var fn = function () { var c = data[col] || {}; next({ docs: Object.keys(c).sort().map(function (id) { return snap(id, c[id]); }) }); };
+          subs.push(fn); setTimeout(fn, 0); return function () {};
+        }
+      };
+    }
+  };
+  window.claude = { use: function (name) { return Promise.resolve(name === "db" ? db : name === "user" ? { can: function () { return Promise.resolve(true); } } : null); } };
+
+  /* ---- the offline bar: where the data lives, back up, restore ---- */
+  var bar, status, confirmBox;
+  function note() {
+    if (!status) return;
+    status.textContent = canStore ? "Saved on this device only. Back up to a file to keep a copy or to move your shortlist to another phone."
+      : "This browser is not letting the app save, so changes last only until you close it. Back up to a file before you leave.";
+  }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; }
+  function backup() {
+    var blob = new Blob([JSON.stringify(data, null, 1)], { type: "application/json" }), a = document.createElement("a");
+    var d = new Date(), stamp = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+    a.href = URL.createObjectURL(blob); a.download = "property-shortlist-backup-" + stamp + ".json";
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  }
+  function build() {
+    bar = el("div", "assume"); bar.id = "offline-bar";
+    status = el("p"); bar.appendChild(status);
+    var b1 = el("button", "btn small", "Back up to a file"); b1.type = "button"; b1.addEventListener("click", backup);
+    var pick = el("input"); pick.type = "file"; pick.accept = "application/json,.json"; pick.id = "offline-restore"; pick.hidden = true;
+    var b2 = el("button", "btn small", "Restore from a file"); b2.type = "button"; b2.addEventListener("click", function () { pick.value = ""; pick.click(); });
+    confirmBox = el("p"); confirmBox.style.flexBasis = "100%"; confirmBox.hidden = true;
+    pick.addEventListener("change", function () {
+      var f = pick.files && pick.files[0]; if (!f) return;
+      var r = new FileReader();
+      r.onload = function () {
+        var incoming; try { incoming = JSON.parse(r.result); } catch (e) { incoming = null; }
+        confirmBox.hidden = false; confirmBox.replaceChildren();
+        if (!valid(incoming)) { confirmBox.textContent = "That file is not a Property Shortlist backup, so nothing was changed."; return; }
+        var n = Object.keys(incoming.properties).length;
+        confirmBox.appendChild(document.createTextNode("Replace everything here with the " + n + (n === 1 ? " property" : " properties") + " in that backup? "));
+        var yes = el("button", "btn small danger", "Yes, replace"), no = el("button", "btn small", "Keep what is here"); yes.type = no.type = "button";
+        yes.addEventListener("click", function () { data = modern(toMiles(incoming)); persist(); fire(); confirmBox.textContent = "Restored from the backup."; });
+        no.addEventListener("click", function () { confirmBox.hidden = true; });
+        confirmBox.appendChild(yes); confirmBox.appendChild(document.createTextNode(" ")); confirmBox.appendChild(no);
+      };
+      r.readAsText(f);
+    });
+    bar.appendChild(b1); bar.appendChild(b2); bar.appendChild(pick); bar.appendChild(confirmBox);
+    document.getElementById("notice-slot").appendChild(bar);
+    note();
+  }
+  window.__offlineBuild = build;
+})();
+</script>
+<script id="logic">
+/* Pure logic. No DOM. */
+var Logic = (function () {
+  var KEYS = ["cost", "cycle", "peace", "space", "retreat", "famA", "famB", "risk"];
+  var DEFAULTS = {
+    weights: { cost: 20, cycle: 15, peace: 20, space: 15, retreat: 10, famA: 5, famB: 5, risk: 10 },
+    presets: {
+      countryside: { cost: 20, cycle: 5, peace: 30, space: 15, retreat: 15, famA: 2.5, famB: 2.5, risk: 10 },
+      cyclecost: { cost: 25, cycle: 25, peace: 10, space: 10, retreat: 10, famA: 5, famB: 5, risk: 10 }
+    },
+    scales: { cost: { best: 250000, worst: 350000 }, cycle: { best: 8, worst: 18 }, famA: { best: 3, worst: 15 },
+              famB: { best: 3, worst: 15 }, space: { best: 100, worst: 50 } },
+    off: { flat: 0.2, isolated: 0.2, drive: 0, driveKm: 18 },
+    tiers: { first: 0.2, second: 0.4 },
+    budget: { ceiling: 300000, max: 350000, hardLimit: true, invoice: 0 },
+    commute: { mph: 16, days: 220, mpg: 45, fuelPrice: 1.94, running: 0.1, growth: { stable: 0, trend: 0.14, high: 0.28 }, years: 5, buffer: 0.15 },
+    districts: {}
+  };
+  function num(v, d) { if (v === null || v === undefined || v === "") return d; v = Number(v); return isFinite(v) ? v : d; }
+  function clamp15(v) { return Math.max(1, Math.min(5, v)); }
+  function slide(x, best, worst) { if (worst === best) return 3; return clamp15(1 + 4 * (worst - x) / (worst - best)); }
+  function isObj(o) { return o && typeof o === "object" && !Array.isArray(o); }
+  function merge(base, over) {
+    var out = {}, k;
+    for (k in base) out[k] = isObj(base[k]) ? merge(base[k], isObj(over) && isObj(over[k]) ? over[k] : {}) : base[k];
+    if (isObj(over)) for (k in over) if (!isObj(base[k]) && over[k] !== undefined && over[k] !== null) out[k] = over[k];
+    return out;
+  }
+  function wsum(w) { var t = 0; KEYS.forEach(function (k) { t += num(w[k], 0); }); return t; }
+  function evaluate(p, s, w) {
+    var price = num(p.price, 0), low = price + num(p.workLow, 0), high = price + num(p.workHigh, 0);
+    var area = num(p.floorArea, 0), measured = area > 0;
+    var km = num(p.cycleKm, null), famAKm = num(p.famAKm, null), famBKm = num(p.famBKm, null);
+    /* a distance not entered yet scores a neutral 3 rather than a perfect 5 */
+    var sc = {
+      cost: slide(high, s.scales.cost.best, s.scales.cost.worst),
+      cycle: km === null ? 3 : Math.max(1, Math.min(5, slide(km, s.scales.cycle.best, s.scales.cycle.worst) + num(p.cycleAdj, 0))),
+      peace: clamp15(num(p.peace, 3)),
+      space: measured ? slide(area, s.scales.space.best, s.scales.space.worst) : clamp15(num(p.spaceEst, 3)),
+      retreat: clamp15(num(p.retreat, 3)),
+      famA: famAKm === null ? 3 : slide(famAKm, s.scales.famA.best, s.scales.famA.worst),
+      famB: famBKm === null ? 3 : slide(famBKm, s.scales.famB.best, s.scales.famB.worst),
+      risk: clamp15(num(p.lowRisk, 3))
+    };
+    var total = wsum(w), raw = 0;
+    if (total > 0) KEYS.forEach(function (k) { raw += sc[k] * num(w[k], 0) / total; });
+    var parts = {
+      flat: p.flat ? num(s.off.flat, 0) : 0,
+      isolated: p.isolated ? num(s.off.isolated, 0) : 0,
+      drive: km !== null && km > num(s.off.driveKm, 18) ? num(s.off.drive, 0) : 0,
+      other: Math.max(0, num(p.otherOff, 0))
+    };
+    var off = parts.flat + parts.isolated + parts.drive + parts.other;
+    var score = raw - off;
+    var best = score + (total > 0 ? (slide(low, s.scales.cost.best, s.scales.cost.worst) - sc.cost) * num(w.cost, 0) / total : 0);
+    return {
+      scores: sc, raw: raw, off: off, offParts: parts, score: score, best: best, low: low, high: high, measured: measured,
+      out: !!s.budget.hardLimit && low > num(s.budget.max, Infinity),
+      rule: high <= s.budget.ceiling ? "pass" : (low <= s.budget.ceiling ? "borderline" : "over"),
+      overMaxAtHigh: high > num(s.budget.max, Infinity)
+    };
+  }
+  /* items: [{id, data}] -> ranked rows; state "in" (with pos and gap), "out" (over the maximum) or "aside" */
+  function rank(items, s, w) {
+    var rows = items.map(function (it) { return { id: it.id, data: it.data, ev: evaluate(it.data, s, w) }; });
+    var ins = rows.filter(function (r) { return !r.data.aside && !r.ev.out; });
+    var leader = ins.reduce(function (m, r) { return Math.max(m, r.ev.score); }, -Infinity);
+    var byScore = function (a, b) { return (b.ev.score - a.ev.score) || (num(a.data.order, 0) - num(b.data.order, 0)) || (a.id < b.id ? -1 : 1); };
+    ins.sort(byScore);
+    ins.forEach(function (r, i) { r.gap = leader - r.ev.score; r.pos = i + 1; r.state = "in"; });
+    var outs = rows.filter(function (r) { return !r.data.aside && r.ev.out; }).sort(byScore);
+    outs.forEach(function (r) { r.state = "out"; });
+    var aside = rows.filter(function (r) { return !!r.data.aside; }).sort(byScore);
+    aside.forEach(function (r) { r.state = "aside"; });
+    return ins.concat(outs, aside);
+  }
+  /* how much each criterion really moves the ranking: weight x spread of scores, as a share */
+  function pull(items, s, w) {
+    var live = items.filter(function (it) { return !it.data.aside; }).map(function (it) { return evaluate(it.data, s, w).scores; });
+    var res = {}, tot = 0;
+    KEYS.forEach(function (k) {
+      var lo = Infinity, hi = -Infinity;
+      live.forEach(function (sc) { lo = Math.min(lo, sc[k]); hi = Math.max(hi, sc[k]); });
+      res[k] = live.length ? num(w[k], 0) * (hi - lo) : 0; tot += res[k];
+    });
+    KEYS.forEach(function (k) { res[k] = tot > 0 ? res[k] / tot : 0; });
+    return res;
+  }
+  function poundsPerPoint(s, w) {
+    var t = wsum(w), c = num(w.cost, 0);
+    if (!(t > 0) || !(c > 0)) return 0;
+    return Math.abs(s.scales.cost.worst - s.scales.cost.best) / 4 / (c / t);
+  }
+  function sdlt(price) {           /* standard residential rates from April 2025 */
+    var bands = [[125000, 0], [250000, 0.02], [925000, 0.05], [1500000, 0.10], [Infinity, 0.12]], prev = 0, tax = 0;
+    bands.forEach(function (b) { if (price > prev) tax += (Math.min(price, b[0]) - prev) * b[1]; prev = b[0]; });
+    return tax;
+  }
+  function sdltFirstTime(price) {  /* relief: 0% to 300k, 5% to 500k, only if price <= 500k */
+    if (price > 500000) return sdlt(price);
+    return price <= 300000 ? 0 : (price - 300000) * 0.05;
+  }
+  /* e-bike time and driving costs, as on the Commute sheet */
+  function commute(p, c) {
+    var km = num(p.cycleKm, null), drive = num(p.driveKm, null), kmh = num(c.mph, 0) * 1.609, n = Math.max(1, Math.round(num(c.years, 5)));
+    var res = { ebike: null, round: null, miles: null, fuel: null, total: null, stable: null, trend: null, high: null, years: n };
+    if (km !== null && kmh > 0) { res.ebike = km / kmh * 60 * (1 + num(c.buffer, 0)); res.round = res.ebike * 2; }
+    if (drive !== null && num(c.mpg, 0) > 0) {
+      res.miles = drive * 2 * num(c.days, 0) / 1.609;
+      res.fuel = res.miles / c.mpg * 4.546 * num(c.fuelPrice, 0);
+      res.total = res.fuel + res.miles * num(c.running, 0);
+      var proj = function (g) { g = num(g, 0); return g === 0 ? res.fuel * n : res.fuel * (Math.pow(1 + g, n) - 1) / g; };
+      res.stable = proj(c.growth.stable); res.trend = proj(c.growth.trend); res.high = proj(c.growth.high);
+    }
+    return res;
+  }
+  /* price per square metre against the district, as on the Appreciation sheet */
+  function market(p, districts) {
+    var d = (districts || {})[p.district] || null, price = num(p.price, 0), area = num(p.floorArea, 0);
+    var perM2 = price > 0 && area > 0 ? price / area : null, median = d ? num(d.medianPerM2, null) : null;
+    return {
+      district: d, perM2: perM2, median: median,
+      premium: perM2 !== null && median ? perM2 / median - 1 : null,
+      change: d ? num(d.annualChange, null) : null,
+      typeChange: d ? (p.marketType === "semi" ? num(d.semiChange, null) : p.marketType === "flat" ? num(d.flatChange, null) : null) : null
+    };
+  }
+  return { KEYS: KEYS, DEFAULTS: DEFAULTS, num: num, slide: slide, merge: merge, wsum: wsum, evaluate: evaluate, rank: rank,
+           pull: pull, poundsPerPoint: poundsPerPoint, sdlt: sdlt, sdltFirstTime: sdltFirstTime, commute: commute, market: market };
+})();
+if (typeof module !== "undefined") module.exports = Logic;
+</script>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var L = Logic, KEYS = L.KEYS;
+  var LABEL = { cost: "Cost", cycle: "Cycle to Beckley", peace: "Peace and countryside", space: "Space", retreat: "Retreat space",
+                famA: "Near family, Hanborough Pavilion", famB: "Near family, North Oxford Tennis Club", risk: "Low risk, little work" };
+  var SHORT = { cost: "cost", cycle: "cycle commute", peace: "peace", space: "space", retreat: "retreat space",
+                famA: "near family (Hanborough Pavilion)", famB: "near family (tennis club)", risk: "low risk" };
+  var GUIDE = {
+    peace: ["Noisy most of the time: main road, flight path, or neighbours you can hear above or below",
+            "Built-up and overlooked; regular noise from the road or neighbours",
+            "Quiet residential street in a town or large village; ordinary neighbour contact",
+            "Village or edge-of-countryside setting; open outlook; little passing traffic",
+            "Rural and private: no close neighbours, countryside on the doorstep, quiet day and night"],
+    retreat: ["Nowhere to retreat to", "A spare bedroom only", "A garage or other space that could be converted",
+              "A spare room plus a garage, conservatory or separate loft room",
+              "A ready-made separate space: garden studio, outbuilding or dedicated office"],
+    risk: ["Full renovation, or known serious defects (structure, damp, rewire)",
+           "Several known jobs: kitchen, bathroom, or a specific issue such as asbestos",
+           "Cosmetic updating likely; condition not yet confirmed",
+           "Recently updated or refurbished; only minor jobs expected",
+           "Turnkey and confirmed by a survey; nothing to do"]
+  };
+  var VIEWS = ["overview", "commute", "market", "plan"];
+  var SCEN = [["stable", "Prices hold"], ["trend", "Oxford trend"], ["high", "High"]];
+  var gbp = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 });
+  var calm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var state = { db: null, canWrite: true, items: [], settings: L.merge(L.DEFAULTS, {}), plan: { steps: [], reminders: "" }, mode: "yours",
+                view: "overview", scenario: "trend", gotItems: false, status: "loading", editing: null, step: null,
+                rows: [], profileId: null, profileList: [], pfLock: false };
+
+  /* ---------------- small helpers ---------------- */
+  function h(tag, attrs) {
+    var el = document.createElement(tag), i, c;
+    if (attrs) for (var k in attrs) {
+      if (k === "class") el.className = attrs[k];
+      else if (k === "text") el.textContent = attrs[k];
+      else if (k === "style") el.style.cssText = attrs[k];
+      else el.setAttribute(k, attrs[k]);
+    }
+    for (i = 2; i < arguments.length; i++) { c = arguments[i]; if (c === null || c === undefined || c === false) continue; el.appendChild(typeof c === "string" ? document.createTextNode(c) : c); }
+    return el;
+  }
+  function fill(el, nodes) { el.replaceChildren.apply(el, nodes.filter(function (n) { return n !== null && n !== undefined && n !== false; })); }
+  function weights() { return state.mode === "yours" ? state.settings.weights : state.settings.presets[state.mode]; }
+  function fmt2(v) { return (Math.round(v * 100) / 100).toFixed(2); }
+  function fmt1(v) { return (Math.round(v * 10) / 10).toFixed(1); }
+  function pct(v) { return Math.round(v * 100) + "%"; }
+  function trimNum(v) { return String(Math.round(v * 100) / 100); }
+  function chg(v) { return v === null ? "–" : (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v * 100).toFixed(1) + "%"; }
+  function rate(g) { g = L.num(g, 0); return g === 0 ? "" : " (" + (g > 0 ? "+" : "−") + trimNum(Math.abs(g) * 100) + "% a year)"; }
+  var KM = 1.609;   /* km in a mile, the same factor the spreadsheet uses; distances are stored in km and shown in miles */
+  function has(v) { return L.num(v, null) !== null; }
+  function miNum(km) { return String(Math.round(Number(km) / KM * 10) / 10); }
+  function miles(km) { var n = miNum(km); return n + (n === "1" ? " mile" : " miles"); }
+  /* A miles box remembers the exact stored distance, so opening and saving without retyping never shifts it. */
+  function setMi(id, km) { var el = $(id); if (!has(km)) { el.value = ""; el.dataset.km = ""; el.dataset.shown = ""; return; } el.value = miNum(km); el.dataset.km = String(km); el.dataset.shown = el.value; }
+  function getMi(id) { var el = $(id), v = el.value.trim(); if (v === "") return null; if (v === el.dataset.shown && el.dataset.km !== "") return Number(el.dataset.km); var n = Number(v); return isFinite(n) && n >= 0 ? n * KM : null; }
+  function money(v) { return v === null || v === undefined ? "–" : gbp.format(v); }
+  function kshort(v) { return "£" + (Math.round(v / 100) / 10) + "k"; }
+  function mins(v) { return v === null ? "–" : Math.round(v) + " min"; }
+  function moneyLine(ev) { return ev.low === ev.high ? gbp.format(ev.high) : gbp.format(ev.low) + " to " + gbp.format(ev.high); }
+  function districtList() {
+    var d = state.settings.districts || {};
+    return Object.keys(d).map(function (k) { return { key: k, d: d[k] }; }).sort(function (a, b) { return L.num(a.d.order, 99) - L.num(b.d.order, 99); });
+  }
+  function empty(title, text) { return h("div", { class: "empty" }, h("strong", { text: title }), text); }
+  function stat(label, value) { return h("div", { class: "stat" }, h("small", { text: label }), h("b", { text: value })); }
+  function dlist(pairs) {
+    var dl = h("dl", { class: "money" });
+    pairs.forEach(function (r) { if (!r) return; dl.appendChild(h("dt", { text: r[0] })); dl.appendChild(h("dd", { text: r[1] })); });
+    return dl;
+  }
+  function indexOfId(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return i; return -1; }
+  function nameBtn(r) {
+    var b = h("button", { class: "namebtn", type: "button", text: r.data.name || "Unnamed property" });
+    b.addEventListener("click", function () { openProfile(r.id); });
+    return b;
+  }
+  function rankBadge(r) { return h("span", { class: "rank " + (r.state !== "in" ? "off" : r.pos === 1 ? "lead1" : ""), text: r.pos ? String(r.pos) : "–" }); }
+  function pills(name, options, current, onPick) {
+    var row = h("div", { class: "hscroll", role: "radiogroup", "aria-label": name });
+    options.forEach(function (o) {
+      var input = h("input", { type: "radio", name: name, id: name + "-" + o[0], value: o[0] });
+      input.checked = current === o[0];
+      input.addEventListener("change", function () { if (input.checked) { onPick(o[0]); var again = $(name + "-" + o[0]); if (again) again.focus(); } });
+      row.appendChild(h("label", { class: "pill" }, input, h("span", { text: o[1] })));
+    });
+    return row;
+  }
+  function budgetChip(ev) {
+    var c = state.settings.budget.ceiling;
+    var rule = { pass: ["good", "Within " + kshort(c)], borderline: ["warn", "Borderline on " + kshort(c)], over: ["bad", "Over " + kshort(c)] }[ev.rule];
+    return h("span", { class: "chip " + rule[0], text: rule[1] });
+  }
+  function offChip(r) {
+    var ev = r.ev, d = r.data, names = [];
+    if (!(ev.off > 0)) return null;
+    if (ev.offParts.flat) names.push("shared building"); if (ev.offParts.isolated) names.push("isolated");
+    if (ev.offParts.drive) names.push("driving only"); if (ev.offParts.other) names.push(d.otherReason || "other");
+    return h("span", { class: "chip warn", text: fmt2(ev.off) + " off: " + names.join(", ") });
+  }
+  function whereText(r) {
+    var d = r.data;
+    return r.state === "in" ? (r.pos === 1 ? "Top of the list" : fmt2(r.gap) + " behind the top") : (r.state === "out" ? "Over your maximum" : "Set aside" + (d.asideReason ? ": " + d.asideReason : ""));
+  }
+  function traitText(ev, n) {
+    var list = KEYS.map(function (k) { return [k, ev.scores[k]]; });
+    var strong = list.filter(function (x) { return x[1] >= 4; }).sort(function (a, b) { return b[1] - a[1]; }).slice(0, n);
+    var weak = list.filter(function (x) { return x[1] <= 2; }).sort(function (a, b) { return a[1] - b[1]; }).slice(0, n);
+    var say = function (xs) { return xs.map(function (x) { return SHORT[x[0]]; }).join(", "); };
+    return { strong: strong.length ? say(strong) : "nothing that stands out", weak: weak.length ? say(weak) : "nothing that scores badly" };
+  }
+
+  /* ---------------- shell: swipeable panels ---------------- */
+  function syncTabs() {
+    Array.prototype.forEach.call(document.querySelectorAll("#tabs button"), function (b) { b.setAttribute("aria-selected", String(b.getAttribute("data-view") === state.view)); });
+    $("btn-add").hidden = !(state.canWrite && state.gotItems && state.view === "overview");
+  }
+  function go(view, smooth) {
+    var p = $("pager"); state.view = view; syncTabs();
+    p.scrollTo({ left: VIEWS.indexOf(view) * p.clientWidth, behavior: smooth && !calm ? "smooth" : "auto" });
+    try { history.replaceState(null, "", "#" + view); } catch (e) {}
+  }
+  function render() {
+    if (state.status === "nodb") {
+      $("summary").textContent = "Your shortlist could not be opened here.";
+      fill($("ov-body"), [empty("Open this page in Claude while signed in", "Your properties are kept with this page in your Claude account, so they only load there.")]);
+      return;
+    }
+    if (!state.gotItems) return;
+    var rows = state.rows = L.rank(state.items, state.settings, weights());
+    var live = rows.filter(function (r) { return r.state !== "aside"; });
+    var viewed = live.filter(function (r) { return r.data.viewed; }).length;
+    $("summary").textContent = live.length === 0 ? "No properties yet"
+      : live.length + (live.length === 1 ? " property" : " properties") + " · " + (viewed === 0 ? "none viewed yet" : viewed + " viewed");
+    $("btn-settings").hidden = false;
+    syncTabs();
+    viewOverview(rows); viewCommute(rows); viewMarket(rows); viewPlan(rows);
+    if ($("profile").open) fillProfile();
+  }
+  function noProps() {
+    return empty("Nothing on the shortlist yet", state.canWrite ? "Use “Add a property” on the Overview to enter the first one. It is scored and placed in the ranking as soon as you save it."
+                                                              : "Properties appear here once they have been added.");
+  }
+
+  /* ---------------- overview ---------------- */
+  function card(r) {
+    var d = r.data, ev = r.ev, s = state.settings, c = L.commute(d, s.commute), t = traitText(ev, 2);
+    var sub = [d.place, d.type].filter(Boolean).join(" · ");
+    var key = [kshort(ev.low) + (ev.low === ev.high ? "" : " to " + kshort(ev.high)) + " all in",
+               ev.measured ? trimNum(d.floorArea) + " m²" : "size not measured",
+               has(d.cycleKm) ? miles(d.cycleKm) + " by bike, " + mins(c.ebike) : "no cycle route yet"].join(" · ");
+    var chips = h("span", { class: "chips" }, budgetChip(ev), offChip(r), h("span", { class: "chip" + (d.viewed ? " good" : ""), text: d.viewed ? "Viewed" : "Not viewed" }),
+      d.outlook ? h("span", { class: "chip", text: "Outlook: " + d.outlook.toLowerCase() }) : null);
+    var btn = h("button", { class: "card", type: "button", "aria-label": "Open " + (d.name || "property") },
+      rankBadge(r),
+      h("span", { class: "card-main" }, h("span", { class: "card-name", text: d.name || "Unnamed property" }), sub ? h("span", { class: "card-sub", text: sub }) : null),
+      h("span", { class: "card-score" }, h("span", { class: "num", text: fmt2(ev.score) }),
+        h("span", { class: "meter" }, h("span", { style: "width:" + Math.max(0, Math.min(100, ev.score / 5 * 100)) + "%" })),
+        h("span", { class: "of", text: r.state === "in" ? (r.pos === 1 ? "top" : fmt2(r.gap) + " behind") : (r.state === "out" ? "over max" : "set aside") })),
+      h("span", { class: "card-body" }, h("span", { class: "key", text: key }),
+        h("span", { class: "traits" }, h("b", { text: "Strong on " }), t.strong + ". ", h("b", { text: "Weak on " }), t.weak + "."), chips));
+    btn.addEventListener("click", function () { openProfile(r.id); });
+    return btn;
+  }
+  function viewOverview(rows) {
+    var out = [pills("mode", [["yours", "Your weights"], ["countryside", "Countryside first"], ["cyclecost", "Cycle & cost first"]], state.mode, function (m) {
+      state.mode = m; try { localStorage.setItem("shortlist-mode", m); } catch (e) {} render();
+    })];
+    if (!rows.length) out.push(noProps());
+    [["in", "Ranked", "Best overall fit first. Tap one, then swipe sideways to compare."],
+     ["out", "Over your maximum", "Price + work is over your maximum even at the low work estimate."],
+     ["aside", "Set aside", "Kept for the record, left out of the ranking."]].forEach(function (g) {
+      var mine = rows.filter(function (r) { return r.state === g[0]; });
+      if (!mine.length) return;
+      var ul = h("ul", { class: "cards" });
+      mine.forEach(function (r) { ul.appendChild(h("li", null, card(r))); });
+      out.push(h("section", { class: "sect" }, h("div", { class: "group-head" }, h("h2", { text: g[1] }), h("p", { text: g[2] })), ul));
+    });
+    if (rows.length) out.push(h("p", { class: "foot", text: "Scores are out of 5. Gaps of less than about " + trimNum(state.settings.tiers.first) +
+      " are within the noise of the estimates, so treat neighbours in the list as level. Until you have viewed a property, its peace, retreat and risk scores are guesses from the listing." }));
+    fill($("ov-body"), out);
+  }
+
+  /* ---------------- commute and fuel ---------------- */
+  function viewCommute(rows) {
+    var c = state.settings.commute, live = rows.filter(function (r) { return r.state !== "aside"; }), out = [];
+    if (!live.length) { fill($("panel-commute"), [noProps()]); return; }
+    var calc = live.map(function (r) { return L.commute(r.data, c); });
+    var sc = state.scenario, n = calc[0].years;
+    var base = calc.reduce(function (m, x) { return x[sc] === null ? m : Math.min(m, x[sc]); }, Infinity);
+    var btn = h("button", { class: "btn small", type: "button", text: "Change" });
+    btn.addEventListener("click", function () { openSettings("st-commute"); });
+    out.push(h("div", { class: "assume" }, h("p", { text: trimNum(c.mph) + " mph by e-bike plus " + pct(c.buffer) + " for junctions and hills · " + trimNum(c.days) +
+      " working days · " + trimNum(c.mpg) + " mpg · £" + L.num(c.fuelPrice, 0).toFixed(2) + " a litre · " + Math.round(L.num(c.running, 0) * 100) + "p a mile running costs" }), state.canWrite ? btn : null));
+    /* what cycling saves against driving: the furthest and the closest property from work */
+    var ranked = live.map(function (r, i) { return { r: r, x: calc[i], km: L.num(r.data.driveKm, null) }; }).filter(function (o) { return o.km !== null && o.x.total !== null && o.r.state === "in"; });
+    if (ranked.length) {
+      var far = ranked.reduce(function (a, b) { return b.km > a.km ? b : a; }), near = ranked.reduce(function (a, b) { return b.km < a.km ? b : a; });
+      var days = Math.max(1, L.num(c.days, 220));
+      var save = function (label, o) {
+        return h("div", { class: "pcard" }, h("div", { class: "pcard-head" }, h("span", { class: "chip", text: label }), nameBtn(o.r)),
+          h("div", { class: "stats" }, stat("Drive, each way", miles(o.km)), stat("Saved each day you cycle", "£" + (o.x.total / days).toFixed(2)),
+            stat("Saved a year, cycling every working day", money(o.x.total)), stat("Of which fuel", money(o.x.fuel)), stat("Fuel saved over " + n + " years, Oxford trend", money(o.x.trend))));
+      };
+      var sec = h("section", { class: "sect" }, h("h2", { text: "What cycling saves against driving" }));
+      if (far.r.id === near.r.id) sec.appendChild(save("Only one with a distance", far));
+      else { sec.appendChild(save("Furthest from work", far)); sec.appendChild(save("Closest to work", near));
+        sec.appendChild(h("p", { class: "foot", text: "If you drive every day instead, the closest costs " + gbp.format(far.x.total - near.x.total) + " a year less than the furthest, " + gbp.format(far.x.fuel - near.x.fuel) + " of it fuel." })); }
+      sec.appendChild(h("p", { class: "foot", text: "The yearly figures assume you would otherwise drive every working day. If you cycle for only part of the year, multiply the daily saving by the days you ride for a truer figure. Charging and bike upkeep are not counted." }));
+      out.push(sec);
+    }
+    var list = h("ul", { class: "cards" });
+    live.forEach(function (r, i) {
+      var x = calc[i], d = r.data;
+      list.appendChild(h("li", { class: "pcard" }, h("div", { class: "pcard-head" }, rankBadge(r), nameBtn(r)),
+        h("div", { class: "stats" }, stat("Safe cycle route", has(d.cycleKm) ? miles(d.cycleKm) : "–"), stat("E-bike, each way", mins(x.ebike)),
+          stat("Drive, each way", has(d.driveKm) ? miles(d.driveKm) : "–"), stat("Fuel a year", money(x.fuel)), stat("All driving costs a year", money(x.total)),
+          stat("Fuel over " + n + " years", money(x[sc]))),
+        x[sc] === null ? null : h("p", { class: "pnote", text: x[sc] - base < 0.5 ? "The shortest drive on your list." : "+" + gbp.format(x[sc] - base) + " over " + n + " years against the shortest drive." })));
+    });
+    out.push(h("section", { class: "sect" }, h("h2", { text: "Every property" }),
+      h("p", { class: "lead", text: "Fuel over " + n + " years if you drive, with prices:" }),
+      pills("scenario", SCEN.map(function (s) { return [s[0], s[1] + rate(c.growth[s[0]])]; }), sc, function (v) { state.scenario = v; render(); }), list));
+    out.push(h("p", { class: "foot", text: "Distances are in miles and are rough estimates: check exact routes in Google Maps or Komoot. Beckley sits on a hill, so the last stretch is a climb from most directions. Costs compound each year at the scenario rate from today's price; real prices will move up and down." }));
+    fill($("panel-commute"), out);
+  }
+
+  /* ---------------- market ---------------- */
+  function viewMarket(rows) {
+    var live = rows.filter(function (r) { return r.state !== "aside"; }), dl = districtList(), out = [];
+    if (!live.length) { fill($("panel-market"), [noProps()]); return; }
+    out.push(h("p", { class: "lead", text: "Guides to fair price and resilience, not forecasts, and not financial advice. Buy the home that suits you, not as an investment." }));
+    if (dl.length) {
+      var row = h("div", { class: "hscroll snapx" });
+      dl.forEach(function (x) { var d = x.d;
+        row.appendChild(h("div", { class: "pcard dcard" }, h("div", { class: "pcard-head" }, h("span", { class: "namebtn", style: "cursor:default", text: d.name || x.key })),
+          h("div", { class: "stats", style: "grid-template-columns:repeat(2,minmax(0,1fr))" }, stat("Average price", money(L.num(d.avgPrice, null))), stat("Yearly change", chg(L.num(d.annualChange, null))),
+            stat("Semi-detached", chg(L.num(d.semiChange, null))), stat("Flats", chg(L.num(d.flatChange, null))), stat("Median per m²", money(L.num(d.medianPerM2, null)))),
+          d.source ? h("p", { class: "hint", style: "margin:0", text: d.source }) : null)); });
+      out.push(h("section", { class: "sect" }, h("h2", { text: "District figures" }), h("p", { class: "lead", text: "Swipe sideways through the districts." }), row));
+    }
+    var list = h("ul", { class: "cards" });
+    live.forEach(function (r) { var d = r.data, m = L.market(d, state.settings.districts);
+      list.appendChild(h("li", { class: "pcard" },
+        h("div", { class: "pcard-head" }, rankBadge(r), nameBtn(r), d.outlook ? h("span", { class: "chip" + (d.outlook === "Stronger" ? " good" : ""), text: d.outlook }) : null),
+        h("div", { class: "stats" }, stat("District", m.district ? m.district.name : "–"), stat("Price per m²", m.perM2 === null ? "Add floor area" : gbp.format(m.perM2)),
+          stat("Against the median", m.premium === null ? "–" : pct(Math.abs(m.premium)) + (m.premium >= 0 ? " above" : " below")),
+          stat("District, yearly", chg(m.change)), stat("This type, yearly", chg(m.typeChange))),
+        d.outlookNote ? h("p", { class: "pnote" }, h("b", { text: "Outlook: " }), d.outlookNote) : null,
+        d.valueAdd ? h("p", { class: "pnote" }, h("b", { text: "Value you could add: " }), d.valueAdd) : null,
+        d.localFactors ? h("p", { class: "pnote" }, h("b", { text: "Local factors: " }), d.localFactors) : null)); });
+    out.push(h("section", { class: "sect" }, h("h2", { text: "Your properties" }), list));
+    out.push(h("p", { class: "foot", text: "Paying above the district median per m² usually reflects plot, location or a detached house. A discount suggests value, but check why. Compare with recent sold prices on the same street before you offer." }));
+    fill($("panel-market"), out);
+  }
+
+  /* ---------------- plan ---------------- */
+  function mentions(text, rows) {
+    var t = String(text || "").toLowerCase();
+    return rows.filter(function (r) {
+      var n = String(r.data.name || "").toLowerCase(), k = n.replace(/^\d+\s+/, "").replace(/\s+apartment$/, "");
+      return k.length >= 5 && (t.indexOf(n) >= 0 || t.indexOf(k) >= 0);
+    });
+  }
+  function viewPlan(rows) {
+    var steps = state.plan.steps || [], out = [];
+    out.push(h("p", { class: "lead", text: "Your decision path, one step at a time. Where a step names a property, its current place in the ranking shows beside it." }));
+    if (!steps.length) out.push(empty("No steps yet", state.canWrite ? "Add the first step of your plan." : "Steps appear here once they have been added."));
+    var ol = h("ol", { class: "steps" });
+    steps.forEach(function (st, i) {
+      var chips = h("span", { class: "chips" });
+      mentions([st.action, st.yes, st.no].join(" "), rows).forEach(function (r) {
+        chips.appendChild(h("span", { class: "chip" + (r.pos === 1 ? " good" : ""), text: (r.data.name || "") + ": " + (r.pos ? "no. " + r.pos + ", " + fmt2(r.ev.score) : r.state === "out" ? "over your maximum" : "set aside") }));
+      });
+      var box = h("input", { type: "checkbox", id: "step-done-" + st.id }); box.checked = !!st.done; box.disabled = !state.canWrite;
+      box.addEventListener("change", function () {
+        var plan = JSON.parse(JSON.stringify(state.plan)); plan.steps[i].done = box.checked; box.disabled = true;
+        state.db.doc("plan/main").set(plan).then(null, function () { box.disabled = false; box.checked = !box.checked; });
+      });
+      var edit = h("button", { class: "btn small", type: "button", text: "Edit" });
+      edit.addEventListener("click", function () { openStep(i); });
+      ol.appendChild(h("li", { class: "step" + (st.done ? " done" : "") }, h("span", { class: "rank", text: String(i + 1) }),
+        h("div", { class: "step-main" }, h("p", { text: st.action || "" }),
+          (st.yes || st.no) ? h("div", { class: "branch" }, st.yes ? h("span", null, h("b", { text: "If yes: " }), st.yes) : null, st.no ? h("span", null, h("b", { text: "If no: " }), st.no) : null) : null,
+          chips.childNodes.length ? chips : null,
+          h("div", { class: "step-foot" }, h("label", { class: "donebox" }, box, "Done"), state.canWrite ? edit : null))));
+    });
+    if (steps.length) out.push(ol);
+    if (state.canWrite) { var add = h("button", { class: "btn", type: "button", text: "Add a step" }); add.addEventListener("click", function () { openStep(-1); }); out.push(h("div", null, add)); }
+    var lines = String(state.plan.reminders || "").split("\n").map(function (x) { return x.trim(); }).filter(Boolean);
+    var ul = h("ul"); lines.forEach(function (x) { ul.appendChild(h("li", { text: x })); });
+    var er = h("button", { class: "btn small", type: "button", text: lines.length ? "Edit" : "Add" });
+    er.addEventListener("click", function () { $("p-reminders").value = state.plan.reminders || ""; $("rm-msg").textContent = ""; $("remdlg").showModal(); });
+    out.push(h("section", { class: "notes" }, h("div", { class: "step-foot" }, h("h2", { text: "Reminders" }), state.canWrite ? er : null),
+      lines.length ? ul : h("p", { class: "hint", style: "margin:0", text: "Nothing noted yet." })));
+    fill($("panel-plan"), out);
+  }
+  function openStep(i) {
+    var st = i >= 0 ? state.plan.steps[i] : { action: "", yes: "", no: "" };
+    state.step = i;
+    $("sp-title").textContent = i >= 0 ? "Step " + (i + 1) : "Add a step";
+    $("p-action").value = st.action || ""; $("p-yes").value = st.yes || ""; $("p-no").value = st.no || "";
+    $("sp-msg").textContent = ""; $("sp-confirm").hidden = true; $("sp-remove").hidden = false;
+    $("sp-remove-wrap").hidden = i < 0; $("sp-move").hidden = i < 0;
+    $("sp-up").disabled = i <= 0; $("sp-down").disabled = i < 0 || i >= state.plan.steps.length - 1;
+    $("stepdlg").showModal();
+  }
+  function writePlan(plan, msgEl, dlg, btn) {
+    if (btn) btn.disabled = true;
+    state.db.doc("plan/main").set(plan).then(function () { if (btn) btn.disabled = false; if (dlg) dlg.close(); }, function (e) { if (btn) btn.disabled = false; fail(msgEl, e); });
+  }
+  function saveStep() {
+    var plan = JSON.parse(JSON.stringify(state.plan)), i = state.step;
+    var st = { action: $("p-action").value.trim(), yes: $("p-yes").value.trim(), no: $("p-no").value.trim() };
+    if (!st.action) { $("sp-msg").textContent = "Say what the step is."; $("p-action").focus(); return; }
+    if (!Array.isArray(plan.steps)) plan.steps = [];
+    if (i >= 0) { plan.steps[i].action = st.action; plan.steps[i].yes = st.yes; plan.steps[i].no = st.no; }
+    else { st.id = "s" + Date.now().toString(36); st.done = false; plan.steps.push(st); }
+    writePlan(plan, $("sp-msg"), $("stepdlg"), $("sp-save"));
+  }
+  function moveStep(by) {
+    var plan = JSON.parse(JSON.stringify(state.plan)), i = state.step, j = i + by;
+    if (i < 0 || j < 0 || j >= plan.steps.length) return;
+    var t = plan.steps[i]; plan.steps[i] = plan.steps[j]; plan.steps[j] = t;
+    writePlan(plan, $("sp-msg"), $("stepdlg"), null);
+  }
+
+  /* ---------------- property profile: one page per property, swiped sideways ---------------- */
+  function whyGrid(ev, d, w) {
+    var total = L.wsum(w), why = h("div", { class: "why" });
+    var detail = { cost: gbp.format(ev.high) + " all in", cycle: has(d.cycleKm) ? miles(d.cycleKm) : "no distance yet",
+                   space: ev.measured ? trimNum(d.floorArea) + " m²" : "your estimate", famA: has(d.famAKm) ? miles(d.famAKm) : "no distance yet",
+                   famB: has(d.famBKm) ? miles(d.famBKm) : "no distance yet" };
+    KEYS.forEach(function (k) {
+      var share = total > 0 ? L.num(w[k], 0) / total : 0;
+      why.appendChild(h("span", { class: "lab" }, LABEL[k] + " ", h("small", { text: (detail[k] ? detail[k] + " · " : "") + "counts " + pct(share) })));
+      why.appendChild(h("span", { class: "bar2" }, h("span", { style: "width:" + (ev.scores[k] / 5 * 100) + "%" })));
+      why.appendChild(h("span", { class: "val", text: fmt1(ev.scores[k]) }));
+    });
+    if (ev.off > 0) { why.appendChild(h("span", { class: "offrow", text: "Points off for drawbacks" })); why.appendChild(h("span", { class: "offval", text: "−" + fmt2(ev.off) })); }
+    return why;
+  }
+  function guideText(key, v) {
+    var g = GUIDE[key], lo = Math.floor(v);
+    if (v === lo) return g[lo - 1];
+    return "Between: " + g[lo - 1].split(/[;:]/)[0].toLowerCase() + " / " + g[lo].split(/[;:]/)[0].toLowerCase();
+  }
+  function profilePage(r) {
+    var d = r.data, ev = r.ev, s = state.settings, c = L.commute(d, s.commute), m = L.market(d, s.districts), g = s.commute.growth;
+    var price = L.num(d.price, 0), std = L.sdlt(price), ftb = L.sdltFirstTime(price), t = traitText(ev, 3);
+    var sec = function (title) { var el = h("section", { class: "pf-sec" }, h("h3", { text: title })); for (var i = 1; i < arguments.length; i++) if (arguments[i]) el.appendChild(arguments[i]); return el; };
+    var judged = function (key, v) { v = L.num(v, 3); return trimNum(v) + " of 5. " + guideText(key, Math.max(1, Math.min(5, Math.round(v * 2) / 2))); };
+    var ruleTxt = { pass: "Within your " + gbp.format(s.budget.ceiling) + " ceiling", borderline: "Borderline: over the ceiling at the high estimate", over: "Over your " + gbp.format(s.budget.ceiling) + " ceiling" }[ev.rule];
+    var link = /^https?:\/\//i.test(d.link || "") ? h("p", null, h("a", { href: d.link, target: "_blank", rel: "noopener", text: "Open the listing" })) : null;
+    return h("article", { class: "panel", "data-id": r.id },
+      h("div", { class: "pf-top" }, rankBadge(r), h("span", { class: "big", text: fmt2(ev.score) }),
+        h("span", { class: "where", text: whereText(r) + (ev.best - ev.score > 0.005 ? " · " + fmt2(ev.best) + " if the work comes in low" : "") })),
+      h("span", { class: "chips" }, budgetChip(ev), offChip(r), h("span", { class: "chip" + (d.viewed ? " good" : ""), text: d.viewed ? "Viewed" : "Not viewed" }),
+        ev.measured ? null : h("span", { class: "chip", text: "Space estimated" })),
+      h("p", { class: "pnote traits" }, h("b", { text: "Strong on " }), t.strong + ". ", h("b", { text: "Weak on " }), t.weak + "."),
+      h("div", { class: "verdict" }, whyGrid(ev, d, weights())),
+      sec("Money", dlist([has(d.asking) ? ["Asking or guide price", gbp.format(d.asking)] : null, ["Price you would pay", money(L.num(d.price, null))],
+        ["Work needed", L.num(d.workLow, 0) === L.num(d.workHigh, 0) ? gbp.format(L.num(d.workHigh, 0)) : gbp.format(L.num(d.workLow, 0)) + " to " + gbp.format(L.num(d.workHigh, 0))],
+        ["Price + work, all in", moneyLine(ev)], ["Against your budget", ruleTxt + (ev.overMaxAtHigh ? " and over your maximum at the high estimate" : "")],
+        ["Stamp duty, standard", gbp.format(std)], ["Stamp duty, first-time buyer", gbp.format(ftb)], ["Cash needed at the high estimate", gbp.format(ev.high + std + L.num(s.budget.invoice, 0))]])),
+      sec("Getting around", dlist([["Safe cycle route to Beckley", has(d.cycleKm) ? miles(d.cycleKm) : "Not entered"], ["E-bike, each way", mins(c.ebike)],
+        ["Drive to Beckley", has(d.driveKm) ? miles(d.driveKm) : "Not entered"], ["Fuel a year if you drive", money(c.fuel)], ["All driving costs a year", money(c.total)],
+        ["Fuel over " + c.years + " years, Oxford trend" + rate(g.trend), money(c.trend)],
+        ["To family at Hanborough Pavilion", has(d.famAKm) ? miles(d.famAKm) : "Not entered"], ["To family at North Oxford Tennis Club", has(d.famBKm) ? miles(d.famBKm) : "Not entered"]]),
+        d.routeNote ? h("p", { class: "hint", text: d.routeNote }) : null),
+      sec("The home", dlist([["Floor area", ev.measured ? trimNum(d.floorArea) + " m²" : "Not measured yet"], ["Peace and countryside", judged("peace", d.peace)],
+        ["Retreat space", judged("retreat", d.retreat)], ["Low risk, little work", judged("risk", d.lowRisk)]])),
+      sec("Market and resale", dlist([["District", m.district ? m.district.name : "Not set"], ["Price per m²", m.perM2 === null ? "Add the floor area" : gbp.format(m.perM2)],
+        ["Against the district median", m.premium === null ? "–" : pct(Math.abs(m.premium)) + (m.premium >= 0 ? " above" : " below")],
+        ["District prices, yearly", chg(m.change)], ["This type of home, yearly", chg(m.typeChange)], ["Outlook", d.outlook ? d.outlook + (d.outlookNote ? ": " + d.outlookNote : "") : "Not judged yet"]]),
+        d.valueAdd ? h("p", null, h("b", { text: "Value you could add: " }), d.valueAdd) : null,
+        d.localFactors ? h("p", null, h("b", { text: "Local factors: " }), d.localFactors) : null),
+      (d.notes || link) ? sec("Notes", d.notes ? h("p", { text: d.notes }) : null, link) : null);
+  }
+  function profileHead() {
+    var list = state.profileList, i = indexOfId(list, state.profileId); if (i < 0) return;
+    var r = list[i], d = r.data;
+    $("pf-title").textContent = d.name || "Unnamed property";
+    $("pf-count").textContent = [d.place, (i + 1) + " of " + list.length, list.length > 1 ? "swipe for the next" : null].filter(Boolean).join(" · ");
+    $("pf-prev").disabled = i <= 0; $("pf-next").disabled = i >= list.length - 1;
+    $("pf-viewed").hidden = !state.canWrite; $("pf-viewed").textContent = d.viewed ? "Viewed (undo)" : "Mark as viewed";
+    $("pf-edit").textContent = state.canWrite ? "Edit" : "Details";
+  }
+  function jumpProfile(smooth) {
+    var p = $("pf-pager"), i = indexOfId(state.profileList, state.profileId); if (i < 0) return;
+    p.scrollTo({ left: i * p.clientWidth, behavior: smooth && !calm ? "smooth" : "auto" });
+  }
+  function fillProfile() {
+    var list = state.profileList = state.rows.slice(), pager = $("pf-pager");
+    if (indexOfId(list, state.profileId) < 0) { if ($("profile").open) $("profile").close(); return; }
+    state.pfLock = true;
+    fill(pager, list.map(profilePage));
+    jumpProfile(false); profileHead();
+    requestAnimationFrame(function () { jumpProfile(false); requestAnimationFrame(function () { state.pfLock = false; }); });
+  }
+  function openProfile(id) {
+    state.profileId = id; $("pf-msg").textContent = "";
+    if (!$("profile").open) $("profile").showModal();
+    fillProfile();
+  }
+  function stepProfile(by) {
+    var list = state.profileList, i = indexOfId(list, state.profileId) + by;
+    if (i < 0 || i >= list.length) return;
+    state.profileId = list[i].id; jumpProfile(true); profileHead();
+  }
+  function toggleViewed() {
+    var i = indexOfId(state.profileList, state.profileId); if (i < 0) return;
+    var btn = $("pf-viewed"), id = state.profileId; btn.disabled = true;
+    state.db.collection("properties").doc(id).update({ viewed: !state.profileList[i].data.viewed })
+      .then(function () { btn.disabled = false; }, function (e) { btn.disabled = false; fail($("pf-msg"), e); });
+  }
+
+  /* ---------------- property edit sheet ---------------- */
+  var NEW = { name: "", place: "", type: "", link: "", notes: "", price: null, asking: null, workLow: 0, workHigh: 0,
+              cycleKm: null, cycleAdj: 0, driveKm: null, famAKm: null, famBKm: null, floorArea: null, spaceEst: 3, peace: 3, retreat: 3, lowRisk: 3,
+              district: "", marketType: "other", valueAdd: "", localFactors: "", outlook: "", outlookNote: "",
+              flat: false, isolated: false, otherOff: 0, otherReason: "", viewed: false, aside: false, asideReason: "" };
+  function val(id, v) { $(id).value = (v === null || v === undefined) ? "" : v; }
+  function numOrNull(id) { var v = $(id).value.trim(); if (v === "") return null; v = Number(v); return isFinite(v) ? v : null; }
+  function openEditor(id) {
+    var item = id ? state.items.filter(function (it) { return it.id === id; })[0] : null;
+    var base = item ? JSON.parse(JSON.stringify(item.data)) : JSON.parse(JSON.stringify(NEW));
+    state.editing = { id: id || null, base: base };
+    $("ed-title").textContent = item ? (base.name || "Property") : "Add a property";
+    var sel = $("f-district"); sel.replaceChildren(h("option", { value: "", text: "Not set" }));
+    districtList().forEach(function (x) { sel.appendChild(h("option", { value: x.key, text: x.d.name || x.key })); });
+    val("f-name", base.name); val("f-place", base.place); val("f-type", base.type); val("f-link", base.link); val("f-notes", base.notes);
+    val("f-price", base.price); val("f-asking", base.asking); val("f-worklow", base.workLow); val("f-workhigh", base.workHigh);
+    setMi("f-cycle", base.cycleKm); $("f-cycleadj").value = String(Math.max(-2, Math.min(0, Math.round(L.num(base.cycleAdj, 0)))));
+    setMi("f-drive", base.driveKm); setMi("f-famA", base.famAKm); setMi("f-famB", base.famBKm); val("f-area", base.floorArea);
+    val("f-spaceest", L.num(base.spaceEst, 3)); val("f-peace", L.num(base.peace, 3)); val("f-retreat", L.num(base.retreat, 3)); val("f-risk", L.num(base.lowRisk, 3));
+    sel.value = base.district || ""; $("f-mtype").value = base.marketType || "other"; $("f-outlook").value = base.outlook || "";
+    if ($("f-outlook").value !== (base.outlook || "")) { $("f-outlook").appendChild(h("option", { text: base.outlook })); $("f-outlook").value = base.outlook; }
+    val("f-outlooknote", base.outlookNote); val("f-valueadd", base.valueAdd); val("f-local", base.localFactors);
+    $("f-flat").checked = !!base.flat; $("f-isolated").checked = !!base.isolated; val("f-otheroff", L.num(base.otherOff, 0)); val("f-otherreason", base.otherReason);
+    $("f-viewed").checked = !!base.viewed; $("f-aside").checked = !!base.aside; val("f-asidereason", base.asideReason);
+    $("f-route").textContent = base.routeNote || "";
+    $("ed-msg").textContent = ""; $("ed-confirm").hidden = true; $("ed-remove").hidden = false;
+    $("ed-remove-wrap").hidden = !item || !state.canWrite; $("ed-save").hidden = !state.canWrite;
+    Array.prototype.forEach.call($("ed-form").querySelectorAll("input,select,textarea"), function (el) { el.disabled = !state.canWrite; });
+    preview();
+    $("editor").showModal(); $("ed-form").scrollTop = 0;
+  }
+  function readForm() {
+    var d = JSON.parse(JSON.stringify(state.editing.base));
+    d.name = $("f-name").value.trim(); d.place = $("f-place").value.trim(); d.type = $("f-type").value.trim();
+    d.link = $("f-link").value.trim(); d.notes = $("f-notes").value.trim();
+    d.price = numOrNull("f-price"); d.asking = numOrNull("f-asking");
+    d.workLow = numOrNull("f-worklow") || 0; d.workHigh = Math.max(numOrNull("f-workhigh") || 0, d.workLow);
+    d.cycleKm = getMi("f-cycle"); d.cycleAdj = Number($("f-cycleadj").value) || 0; d.driveKm = getMi("f-drive");
+    d.famAKm = getMi("f-famA"); d.famBKm = getMi("f-famB");
+    d.floorArea = numOrNull("f-area"); if (!(d.floorArea > 0)) d.floorArea = null;
+    d.spaceEst = Number($("f-spaceest").value); d.peace = Number($("f-peace").value); d.retreat = Number($("f-retreat").value); d.lowRisk = Number($("f-risk").value);
+    d.district = $("f-district").value; d.marketType = $("f-mtype").value; d.outlook = $("f-outlook").value; d.outlookNote = $("f-outlooknote").value.trim();
+    d.valueAdd = $("f-valueadd").value.trim(); d.localFactors = $("f-local").value.trim();
+    d.flat = $("f-flat").checked; d.isolated = $("f-isolated").checked; d.otherOff = Math.max(0, numOrNull("f-otheroff") || 0); d.otherReason = $("f-otherreason").value.trim();
+    d.viewed = $("f-viewed").checked; d.aside = $("f-aside").checked; d.asideReason = $("f-asidereason").value.trim();
+    return d;
+  }
+  function fillDl(id, pairs) {
+    var dl = $(id); dl.replaceChildren();
+    pairs.forEach(function (r) { dl.appendChild(h("dt", { text: r[0] })); dl.appendChild(h("dd", { text: r[1] })); });
+  }
+  function preview() {
+    if (!state.editing) return;
+    var s = state.settings, w = weights(), d = readForm(), id = state.editing.id || "__new__";
+    var items = state.items.filter(function (it) { return it.id !== id; }).concat([{ id: id, data: d }]);
+    var rows = L.rank(items, s, w), me = rows.filter(function (r) { return r.id === id; })[0], ev = me.ev;
+    var ppp = L.poundsPerPoint(s, w), live = rows.filter(function (r) { return r.state === "in"; }).length;
+    var pos = me.state === "in" ? "Position " + me.pos + " of " + live + (me.pos === 1 ? "" : " · " + fmt2(me.gap) + " behind the top") +
+                (ev.best - ev.score > 0.005 ? " · " + fmt2(ev.best) + " if the work comes in low" : "")
+            : me.state === "out" ? "Over your maximum, so left out of the ranking" : "Set aside, so left out of the ranking";
+    $("ed-live").textContent = "Score " + fmt2(ev.score) + (me.state === "in" ? " · position " + me.pos + " of " + live : "");
+    $("ed-verdict").replaceChildren(h("div", { class: "verdict-top" }, h("span", { class: "big", text: fmt2(ev.score) }), h("span", { class: "pos", text: pos })), whyGrid(ev, d, w));
+    var price = L.num(d.price, 0), std = L.sdlt(price), ftb = L.sdltFirstTime(price);
+    var ruleTxt = { pass: "Within your " + gbp.format(s.budget.ceiling) + " ceiling", borderline: "Borderline: over the ceiling at the high estimate", over: "Over your " + gbp.format(s.budget.ceiling) + " ceiling" }[ev.rule];
+    fillDl("ed-money", [["Price + work, all in", moneyLine(ev)], ["Against your budget", ruleTxt + (ev.overMaxAtHigh ? " and over your maximum at the high estimate" : "")],
+                        ["Stamp duty, standard", gbp.format(std)], ["Stamp duty, first-time buyer", gbp.format(ftb)],
+                        ["Cash needed at the high estimate", gbp.format(ev.high + std + L.num(s.budget.invoice, 0))]]);
+    var c = L.commute(d, s.commute), g = s.commute.growth;
+    fillDl("ed-commute", [["E-bike, one way", mins(c.ebike)], ["E-bike, both ways each day", mins(c.round)],
+                          ["Fuel a year if you drive", money(c.fuel)], ["All driving costs a year", money(c.total)],
+                          ["Fuel over " + c.years + " years, prices hold", money(c.stable)],
+                          ["Fuel over " + c.years + " years, Oxford trend" + rate(g.trend), money(c.trend)],
+                          ["Fuel over " + c.years + " years, high" + rate(g.high), money(c.high)]]);
+    var m = L.market(d, s.districts);
+    fillDl("ed-market", [["Price per m²", m.perM2 === null ? "Add the floor area" : gbp.format(m.perM2)],
+                         ["District median per m²", money(m.median)],
+                         ["Against the median", m.premium === null ? "–" : pct(Math.abs(m.premium)) + (m.premium >= 0 ? " above" : " below")],
+                         ["District prices, yearly", chg(m.change)], ["This type of home, yearly", chg(m.typeChange)]]);
+    [["peace", "f-peace"], ["retreat", "f-retreat"], ["risk", "f-risk"]].forEach(function (p) {
+      var v = Number($(p[1]).value); $("o-" + p[0]).textContent = trimNum(v); $("g-" + p[0]).textContent = guideText(p[0], v);
+    });
+    var se = Number($("f-spaceest").value), sc = s.scales.space;
+    $("o-spaceest").textContent = trimNum(se);
+    $("g-spaceest").textContent = "About " + Math.round(sc.worst + (sc.best - sc.worst) * (se - 1) / 4) + " m². Used only until you add the floor area.";
+    $("wrap-spaceest").hidden = ev.measured;
+    $("wrap-asidereason").hidden = !$("f-aside").checked;
+    var worth = function (p) { return p > 0 ? fmt2(p) + " points off" + (ppp > 0 ? ", about " + gbp.format(p * ppp) + " of price" : "") : "No points off at present"; };
+    $("h-flat").textContent = worth(L.num(s.off.flat, 0)); $("h-isolated").textContent = worth(L.num(s.off.isolated, 0));
+    $("h-otheroff").textContent = ppp > 0 ? "0.1 is about " + gbp.format(0.1 * ppp) + " of price." : "";
+    var link = $("f-link").value.trim(), slot = $("f-link-open"); slot.replaceChildren();
+    if (/^https?:\/\//i.test(link)) slot.appendChild(h("a", { href: link, target: "_blank", rel: "noopener", text: "Open the listing" }));
+  }
+  function fail(el, e) {
+    if (e && e.code === "invalid_argument") { state.canWrite = false; el.textContent = "You can view this shortlist but not change it."; render(); }
+    else if (e && e.code === "quota_exceeded") el.textContent = "The shortlist is full. Remove a property to make room.";
+    else el.textContent = "That did not save. Check your connection and try again.";
+  }
+  function saveProperty() {
+    var d = readForm(), msg = $("ed-msg"), btn = $("ed-save");
+    if (!d.name) { msg.textContent = "Give the property a name."; $("f-name").focus(); return; }
+    if (!(d.price > 0)) { msg.textContent = "Enter the price you would pay."; $("f-price").focus(); return; }
+    var col = state.db.collection("properties"), ref = state.editing.id ? col.doc(state.editing.id) : col.doc();
+    if (!state.editing.id) { d.order = state.items.reduce(function (m, it) { return Math.max(m, L.num(it.data.order, 0)); }, 0) + 1; }
+    btn.disabled = true; msg.textContent = "";
+    ref.set(d).then(function () { btn.disabled = false; $("editor").close(); }, function (e) { btn.disabled = false; fail(msg, e); });
+  }
+  function removeProperty() {
+    var msg = $("ed-msg");
+    state.db.collection("properties").doc(state.editing.id).delete().then(function () { $("editor").close(); }, function (e) { fail(msg, e); });
+  }
+
+  /* ---------------- settings sheet ---------------- */
+  var ST = [["s-off-flat", "off", "flat"], ["s-off-isolated", "off", "isolated"], ["s-off-drive", "off", "drive"],
+            ["s-ceiling", "budget", "ceiling"], ["s-max", "budget", "max"], ["s-invoice", "budget", "invoice"], ["s-tier-first", "tiers", "first"],
+            ["s-c-mph", "commute", "mph"], ["s-c-days", "commute", "days"], ["s-c-mpg", "commute", "mpg"], ["s-c-fuel", "commute", "fuelPrice"],
+            ["s-c-running", "commute", "running"], ["s-c-years", "commute", "years"]];
+  var SC = ["cost", "cycle", "famA", "famB", "space"], MI = { cycle: true, famA: true, famB: true };   /* MI: shown in miles */
+  var DF = [["avgPrice", "Average price (£)", false], ["annualChange", "All homes, yearly (%)", true], ["semiChange", "Semi-detached, yearly (%)", true],
+            ["flatChange", "Flats, yearly (%)", true], ["medianPerM2", "Median price per m² (£)", false]];
+  function pctVal(v) { return v === null || v === undefined ? "" : String(Math.round(v * 10000) / 100); }
+  function openSettings(openId) {
+    var s = state.settings, box = $("st-weights");
+    box.replaceChildren();
+    KEYS.forEach(function (k) {
+      var v = L.num(s.weights[k], 0);
+      box.appendChild(h("div", { class: "field" },
+        h("div", { class: "rangehead" }, h("label", { for: "s-w-" + k, text: LABEL[k] }), h("output", { id: "s-wo-" + k, for: "s-w-" + k })),
+        h("input", { type: "range", id: "s-w-" + k, min: "0", max: String(Math.max(40, Math.ceil(v / 10) * 10)), step: "2.5", value: String(v) }),
+        h("span", { class: "hint", id: "s-wh-" + k })));
+    });
+    ST.forEach(function (r) { val(r[0], s[r[1]][r[2]]); });
+    SC.forEach(function (k) { (MI[k] ? setMi : val)("s-" + k + "-best", s.scales[k].best); (MI[k] ? setMi : val)("s-" + k + "-worst", s.scales[k].worst); });
+    setMi("s-off-drivekm", s.off.driveKm);
+    val("s-c-buffer", pctVal(s.commute.buffer)); val("s-c-g-stable", pctVal(s.commute.growth.stable)); val("s-c-g-trend", pctVal(s.commute.growth.trend)); val("s-c-g-high", pctVal(s.commute.growth.high));
+    var db = $("st-districts"); db.replaceChildren();
+    districtList().forEach(function (x) {
+      var grid = h("div", { class: "grid2" });
+      DF.forEach(function (f) {
+        var id = "s-d-" + x.key + "-" + f[0];
+        grid.appendChild(h("div", { class: "field" }, h("label", { for: id, text: f[1] }),
+          h("input", { type: "number", id: id, inputmode: "decimal", step: f[2] ? "0.1" : "10", value: f[2] ? pctVal(x.d[f[0]]) : (x.d[f[0]] === null || x.d[f[0]] === undefined ? "" : String(x.d[f[0]])) })));
+      });
+      db.appendChild(h("div", null, h("p", { class: "subhead", text: x.d.name || x.key }), grid));
+    });
+    $("s-hard").checked = !!s.budget.hardLimit; $("st-msg").textContent = ""; $("st-save").hidden = !state.canWrite;
+    Array.prototype.forEach.call($("st-form").querySelectorAll("input"), function (el) { el.disabled = !state.canWrite; });
+    var want = typeof openId === "string" ? openId : "acc-weights";
+    Array.prototype.forEach.call($("st-form").querySelectorAll("details.acc"), function (dt) { dt.open = dt.id === want; });
+    previewSettings();
+    $("settings").showModal();
+    var target = $(want); $("st-form").scrollTop = 0; if (target && want !== "acc-weights") target.scrollIntoView({ block: "start" });
+  }
+  function readSettings() {
+    var s = JSON.parse(JSON.stringify(state.settings));
+    KEYS.forEach(function (k) { s.weights[k] = Number($("s-w-" + k).value) || 0; });
+    ST.forEach(function (r) { var v = numOrNull(r[0]); if (v !== null && v >= 0) s[r[1]][r[2]] = v; });
+    SC.forEach(function (k) { var get = MI[k] ? getMi : numOrNull, b = get("s-" + k + "-best"), w = get("s-" + k + "-worst"); if (b !== null) s.scales[k].best = b; if (w !== null) s.scales[k].worst = w; });
+    var dk = getMi("s-off-drivekm"); if (dk !== null) s.off.driveKm = dk;
+    var p = function (id, cur) { var v = numOrNull(id); return v === null ? cur : v / 100; };
+    s.commute.buffer = p("s-c-buffer", s.commute.buffer);
+    s.commute.growth.stable = p("s-c-g-stable", s.commute.growth.stable); s.commute.growth.trend = p("s-c-g-trend", s.commute.growth.trend); s.commute.growth.high = p("s-c-g-high", s.commute.growth.high);
+    districtList().forEach(function (x) {
+      DF.forEach(function (f) { var el = $("s-d-" + x.key + "-" + f[0]); if (!el) return; var v = el.value.trim() === "" ? null : Number(el.value);
+        s.districts[x.key][f[0]] = (v === null || !isFinite(v)) ? null : (f[2] ? v / 100 : v); });
+    });
+    s.budget.hardLimit = $("s-hard").checked;
+    return s;
+  }
+  function previewSettings() {
+    var s = readSettings(), total = L.wsum(s.weights), pull = L.pull(state.items, s, s.weights), ppp = L.poundsPerPoint(s, s.weights);
+    KEYS.forEach(function (k) {
+      var share = total > 0 ? s.weights[k] / total : 0;
+      $("s-wo-" + k).textContent = trimNum(s.weights[k]);
+      $("s-wh-" + k).textContent = "Counts " + pct(share) + " · really pulls " + pct(pull[k]);
+    });
+    $("st-yard").textContent = ppp > 0
+      ? "On these weights one whole point of score is worth about " + gbp.format(ppp) + " of price + work, so 0.1 is about " + gbp.format(ppp / 10) + "."
+      : "Give cost some weight to see what a point is worth in pounds.";
+    [["flat", "s-off-flat"], ["isolated", "s-off-isolated"], ["drive", "s-off-drive"]].forEach(function (p) {
+      var v = numOrNull(p[1]) || 0; $(p[1] + "-gbp").textContent = ppp > 0 && v > 0 ? "About " + gbp.format(v * ppp) + " of price" : (v > 0 ? "" : "Nothing taken off");
+    });
+  }
+  function saveSettings() {
+    var s = readSettings(), msg = $("st-msg"), btn = $("st-save");
+    if (!(L.wsum(s.weights) > 0)) { msg.textContent = "Give at least one thing some weight."; return; }
+    if (s.scales.cost.best === s.scales.cost.worst) { msg.textContent = "The two cost figures need to differ."; return; }
+    btn.disabled = true; msg.textContent = "";
+    state.db.doc("settings/main").set(s).then(function () { btn.disabled = false; $("settings").close(); }, function (e) { btn.disabled = false; fail(msg, e); });
+  }
+
+  /* ---------------- gestures and wiring ---------------- */
+  function on(id, ev, fn) { $(id).addEventListener(ev, fn); }
+  function closer(dlg) { return function () { $(dlg).close(); }; }
+  /* pull a sheet down by its handle to close it */
+  function dragToClose(dlg, handle) {
+    var y0 = null, dy = 0;
+    handle.addEventListener("pointerdown", function (e) { y0 = e.clientY; dy = 0; try { handle.setPointerCapture(e.pointerId); } catch (x) {} dlg.style.transition = "none"; });
+    handle.addEventListener("pointermove", function (e) { if (y0 === null) return; dy = Math.max(0, e.clientY - y0); dlg.style.transform = "translateY(" + dy + "px)"; });
+    var end = function () { if (y0 === null) return; y0 = null; dlg.style.transition = ""; dlg.style.transform = ""; if (dy > 90) dlg.close(); };
+    handle.addEventListener("pointerup", end); handle.addEventListener("pointercancel", end);
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("dialog"), function (dlg) { var g = dlg.querySelector(".grab"); if (g) dragToClose(dlg, g); });
+  /* the tab bar follows the panel you have swiped to */
+  var ticking = 0;
+  on("pager", "scroll", function () {
+    if (ticking) return;
+    ticking = requestAnimationFrame(function () {
+      ticking = 0; var p = $("pager"), v = VIEWS[Math.round(p.scrollLeft / Math.max(1, p.clientWidth))];
+      if (v && v !== state.view) { state.view = v; syncTabs(); try { history.replaceState(null, "", "#" + v); } catch (e) {} }
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("#tabs button"), function (b) { b.addEventListener("click", function () { go(b.getAttribute("data-view"), true); }); });
+  window.addEventListener("resize", function () { go(state.view, false); if ($("profile").open) jumpProfile(false); });
+  /* the profile header follows the property you have swiped to */
+  var pfTick = 0;
+  on("pf-pager", "scroll", function () {
+    if (pfTick || state.pfLock) return;
+    pfTick = requestAnimationFrame(function () {
+      pfTick = 0; if (state.pfLock) return;
+      var p = $("pf-pager"), r = state.profileList[Math.round(p.scrollLeft / Math.max(1, p.clientWidth))];
+      if (r && r.id !== state.profileId) { state.profileId = r.id; profileHead(); }
+    });
+  });
+  on("pf-prev", "click", function () { stepProfile(-1); }); on("pf-next", "click", function () { stepProfile(1); });
+  on("pf-close", "click", closer("profile")); on("pf-edit", "click", function () { openEditor(state.profileId); }); on("pf-viewed", "click", toggleViewed);
+  on("btn-add", "click", function () { openEditor(null); });
+  on("btn-settings", "click", function () { openSettings(); });
+  Array.prototype.forEach.call(document.querySelectorAll("#ed-jump .jchip"), function (b) {
+    b.addEventListener("click", function () { var t = $(b.getAttribute("data-target")); if (t) t.scrollIntoView({ block: "start", behavior: calm ? "auto" : "smooth" }); });
+  });
+  on("ed-form", "input", preview); on("ed-form", "change", preview);
+  on("st-form", "input", previewSettings); on("st-form", "change", previewSettings);
+  ["ed-form", "st-form", "sp-form", "rm-form"].forEach(function (f) { on(f, "submit", function (e) { e.preventDefault(); }); });
+  on("ed-save", "click", saveProperty); on("ed-cancel", "click", closer("editor")); on("ed-close", "click", closer("editor"));
+  on("ed-remove", "click", function () { $("ed-remove").hidden = true; $("ed-confirm").hidden = false; });
+  on("ed-remove-no", "click", function () { $("ed-remove").hidden = false; $("ed-confirm").hidden = true; });
+  on("ed-remove-yes", "click", removeProperty);
+  on("editor", "close", function () { state.editing = null; });
+  on("st-save", "click", saveSettings); on("st-cancel", "click", closer("settings")); on("st-close", "click", closer("settings"));
+  on("sp-save", "click", saveStep); on("sp-cancel", "click", closer("stepdlg")); on("sp-close", "click", closer("stepdlg"));
+  on("sp-up", "click", function () { moveStep(-1); }); on("sp-down", "click", function () { moveStep(1); });
+  on("sp-remove", "click", function () { $("sp-remove").hidden = true; $("sp-confirm").hidden = false; });
+  on("sp-remove-no", "click", function () { $("sp-remove").hidden = false; $("sp-confirm").hidden = true; });
+  on("sp-remove-yes", "click", function () { var plan = JSON.parse(JSON.stringify(state.plan)); plan.steps.splice(state.step, 1); writePlan(plan, $("sp-msg"), $("stepdlg"), null); });
+  on("rm-save", "click", function () { var plan = JSON.parse(JSON.stringify(state.plan)); if (!Array.isArray(plan.steps)) plan.steps = []; plan.reminders = $("p-reminders").value.trim(); writePlan(plan, $("rm-msg"), $("remdlg"), $("rm-save")); });
+  on("rm-cancel", "click", closer("remdlg")); on("rm-close", "click", closer("remdlg"));
+  try { var m = localStorage.getItem("shortlist-mode"); if (m === "countryside" || m === "cyclecost") state.mode = m; } catch (e) {}
+  var hash = (location.hash || "").replace("#", ""); if (VIEWS.indexOf(hash) >= 0) state.view = hash;
+  go(state.view, false);
+
+  function start() {
+    if (!window.claude || typeof window.claude.use !== "function") { state.status = "nodb"; render(); return; }
+    Promise.all([window.claude.use("db"), window.claude.use("user")]).then(function (r) {
+      var db = r[0], user = r[1];
+      if (!db) { state.status = "nodb"; render(); return; }
+      state.db = db; state.status = "ready";
+      var dead = function () { $("banner").hidden = false; $("banner").textContent = "Lost the connection to your shortlist. Reload the page to pick it up again."; };
+      db.doc("settings/main").onSnapshot(function (snap) { state.settings = L.merge(L.DEFAULTS, snap.exists ? snap.data() : {}); render(); }, dead);
+      db.doc("plan/main").onSnapshot(function (snap) {
+        var p = snap.exists ? (snap.data() || {}) : {};
+        state.plan = { steps: Array.isArray(p.steps) ? p.steps : [], reminders: typeof p.reminders === "string" ? p.reminders : "" }; render();
+      }, dead);
+      db.collection("properties").onSnapshot(function (snap) {
+        state.items = snap.docs.map(function (d) { return { id: d.id, data: d.data() || {} }; });
+        state.gotItems = true; render();
+      }, dead);
+      if (user) user.can("data.write").then(function (ok) { if (ok === false) { state.canWrite = false; render(); } });
+    }, function () { state.status = "nodb"; render(); });
+  }
+  start();
+})();
+</script>
+
+<script>window.__offlineBuild && window.__offlineBuild();
+if ("serviceWorker" in navigator) window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });</script>
+</body>
+</html>
