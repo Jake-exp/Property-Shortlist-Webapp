@@ -391,6 +391,7 @@ details.acc[open] > summary { margin-bottom: 4px; }
       <div class="field"><div class="rangehead"><label for="f-peace">Peace and countryside</label><output id="o-peace" for="f-peace"></output></div><input type="range" id="f-peace" min="1" max="5" step="0.5"><span class="hint" id="g-peace"></span></div>
       <div class="field"><div class="rangehead"><label for="f-retreat">Retreat space</label><output id="o-retreat" for="f-retreat"></output></div><input type="range" id="f-retreat" min="1" max="5" step="0.5"><span class="hint" id="g-retreat"></span></div>
       <div class="field"><div class="rangehead"><label for="f-risk">Low risk, little work</label><output id="o-risk" for="f-risk"></output></div><input type="range" id="f-risk" min="1" max="5" step="0.5"><span class="hint" id="g-risk"></span></div>
+      <div class="field"><div class="rangehead"><label for="f-potential">Potential to add value</label><output id="o-potential" for="f-potential"></output></div><input type="range" id="f-potential" min="1" max="5" step="0.5"><span class="hint" id="g-potential"></span></div>
     </fieldset>
 
     <fieldset id="sec-market"><legend>Market and resale</legend>
@@ -678,12 +679,12 @@ window.__photos = true;   /* the photo gallery: pictures are kept in this browse
 <script id="logic">
 /* Pure logic. No DOM. */
 var Logic = (function () {
-  var KEYS = ["cost", "cycle", "peace", "space", "retreat", "famA", "famB", "risk"];
+  var KEYS = ["cost", "cycle", "peace", "space", "retreat", "famA", "famB", "risk", "potential"];
   var DEFAULTS = {
-    weights: { cost: 20, cycle: 15, peace: 20, space: 15, retreat: 10, famA: 5, famB: 5, risk: 10 },
+    weights: { cost: 18, cycle: 13.5, peace: 18, space: 13.5, retreat: 9, famA: 4.5, famB: 4.5, risk: 9, potential: 10 },
     presets: {
-      countryside: { cost: 20, cycle: 5, peace: 30, space: 15, retreat: 15, famA: 2.5, famB: 2.5, risk: 10 },
-      cyclecost: { cost: 25, cycle: 25, peace: 10, space: 10, retreat: 10, famA: 5, famB: 5, risk: 10 }
+      countryside: { cost: 18, cycle: 4.5, peace: 27, space: 13.5, retreat: 13.5, famA: 2.25, famB: 2.25, risk: 9, potential: 10 },
+      cyclecost: { cost: 22.5, cycle: 22.5, peace: 9, space: 9, retreat: 9, famA: 4.5, famB: 4.5, risk: 9, potential: 10 }
     },
     scales: { cost: { best: 250000, worst: 350000 }, cycle: { best: 8, worst: 18 }, famA: { best: 3, worst: 15 },
               famB: { best: 3, worst: 15 }, space: { best: 100, worst: 50 } },
@@ -697,6 +698,20 @@ var Logic = (function () {
   function clamp15(v) { return Math.max(1, Math.min(5, v)); }
   function slide(x, best, worst) { if (worst === best) return 3; return clamp15(1 + 4 * (worst - x) / (worst - best)); }
   function isObj(o) { return o && typeof o === "object" && !Array.isArray(o); }
+  /* settings saved before Potential existed: keep each weighting's balance, scale it to 90% and give Potential 10% */
+  function upgrade(saved) {
+    if (!isObj(saved)) return saved;
+    var s = JSON.parse(JSON.stringify(saved));
+    var fix = function (w) {
+      if (!isObj(w) || w.potential !== undefined) return;
+      var any = false; KEYS.forEach(function (k) { if (k !== "potential" && w[k] !== undefined) any = true; });
+      if (!any) return;
+      KEYS.forEach(function (k) { if (k !== "potential" && w[k] !== undefined) w[k] = Math.round(num(w[k], 0) * 0.9 * 100) / 100; });
+      w.potential = 10;
+    };
+    fix(s.weights); if (isObj(s.presets)) { fix(s.presets.countryside); fix(s.presets.cyclecost); }
+    return s;
+  }
   function merge(base, over) {
     var out = {}, k;
     for (k in base) out[k] = isObj(base[k]) ? merge(base[k], isObj(over) && isObj(over[k]) ? over[k] : {}) : base[k];
@@ -717,7 +732,8 @@ var Logic = (function () {
       retreat: clamp15(num(p.retreat, 3)),
       famA: famAKm === null ? 3 : slide(famAKm, s.scales.famA.best, s.scales.famA.worst),
       famB: famBKm === null ? 3 : slide(famBKm, s.scales.famB.best, s.scales.famB.worst),
-      risk: clamp15(num(p.lowRisk, 3))
+      risk: clamp15(num(p.lowRisk, 3)),
+      potential: clamp15(num(p.potential, 3))
     };
     var total = wsum(w), raw = 0;
     if (total > 0) KEYS.forEach(function (k) { raw += sc[k] * num(w[k], 0) / total; });
@@ -802,7 +818,7 @@ var Logic = (function () {
       typeChange: d ? (p.marketType === "semi" ? num(d.semiChange, null) : p.marketType === "flat" ? num(d.flatChange, null) : null) : null
     };
   }
-  return { KEYS: KEYS, DEFAULTS: DEFAULTS, num: num, slide: slide, merge: merge, wsum: wsum, evaluate: evaluate, rank: rank,
+  return { KEYS: KEYS, DEFAULTS: DEFAULTS, num: num, slide: slide, merge: merge, upgrade: upgrade, wsum: wsum, evaluate: evaluate, rank: rank,
            pull: pull, poundsPerPoint: poundsPerPoint, sdlt: sdlt, sdltFirstTime: sdltFirstTime, commute: commute, market: market };
 })();
 if (typeof module !== "undefined") module.exports = Logic;
@@ -814,9 +830,9 @@ if (typeof module !== "undefined") module.exports = Logic;
   var $ = function (id) { return document.getElementById(id); };
   var L = Logic, KEYS = L.KEYS;
   var LABEL = { cost: "Cost", cycle: "Cycle to Beckley", peace: "Peace and countryside", space: "Space", retreat: "Retreat space",
-                famA: "Near family, Hanborough Pavilion", famB: "Near family, North Oxford Tennis Club", risk: "Low risk, little work" };
+                famA: "Near family, Hanborough Pavilion", famB: "Near family, North Oxford Tennis Club", risk: "Low risk, little work", potential: "Potential to add value" };
   var SHORT = { cost: "cost", cycle: "cycle commute", peace: "peace", space: "space", retreat: "retreat space",
-                famA: "near family (Hanborough Pavilion)", famB: "near family (tennis club)", risk: "low risk" };
+                famA: "near family (Hanborough Pavilion)", famB: "near family (tennis club)", risk: "low risk", potential: "potential to add value" };
   var GUIDE = {
     peace: ["Noisy most of the time: main road, flight path, or neighbours you can hear above or below",
             "Built-up and overlooked; regular noise from the road or neighbours",
@@ -830,7 +846,12 @@ if (typeof module !== "undefined") module.exports = Logic;
            "Several known jobs: kitchen, bathroom, or a specific issue such as asbestos",
            "Cosmetic updating likely; condition not yet confirmed",
            "Recently updated or refurbished; only minor jobs expected",
-           "Turnkey and confirmed by a survey; nothing to do"]
+           "Turnkey and confirmed by a survey; nothing to do"],
+    potential: ["No realistic way to add space or value: already extended, a flat, or a tight plot",
+                "Cosmetic only: redecorating adds a little",
+                "Some: updating throughout, or a garage or conservatory you could convert",
+                "Clear: loft conversion or extension scope, plus a garage or outbuilding",
+                "Major: a large plot with extension scope and outbuildings; buy, improve and add real value"]
   };
   var VIEWS = ["overview", "commute", "market", "plan"];
   var SCEN = [["stable", "Prices hold"], ["trend", "Oxford trend"], ["high", "High"]];
@@ -1416,7 +1437,7 @@ if (typeof module !== "undefined") module.exports = Logic;
         ["To family at Hanborough Pavilion", has(d.famAKm) ? miles(d.famAKm) : "Not entered"], ["To family at North Oxford Tennis Club", has(d.famBKm) ? miles(d.famBKm) : "Not entered"]]),
         d.routeNote ? h("p", { class: "hint", text: d.routeNote }) : null),
       sec("The home", dlist([["Floor area", ev.measured ? trimNum(d.floorArea) + " m²" : "Not measured yet"], ["Peace and countryside", judged("peace", d.peace)],
-        ["Retreat space", judged("retreat", d.retreat)], ["Low risk, little work", judged("risk", d.lowRisk)]])),
+        ["Retreat space", judged("retreat", d.retreat)], ["Low risk, little work", judged("risk", d.lowRisk)], ["Potential to add value", judged("potential", d.potential)]])),
       sec("Market and resale", dlist([["District", m.district ? m.district.name : "Not set"], ["Price per m²", m.perM2 === null ? "Add the floor area" : gbp.format(m.perM2)],
         ["Against the district median", m.premium === null ? "–" : pct(Math.abs(m.premium)) + (m.premium >= 0 ? " above" : " below")],
         ["District prices, yearly", chg(m.change)], ["This type of home, yearly", chg(m.typeChange)], ["Outlook", d.outlook ? d.outlook + (d.outlookNote ? ": " + d.outlookNote : "") : "Not judged yet"]]),
@@ -1464,7 +1485,7 @@ if (typeof module !== "undefined") module.exports = Logic;
 
   /* ---------------- property edit sheet ---------------- */
   var NEW = { name: "", place: "", type: "", link: "", notes: "", price: null, asking: null, workLow: 0, workHigh: 0,
-              cycleKm: null, cycleAdj: 0, driveKm: null, famAKm: null, famBKm: null, floorArea: null, spaceEst: 3, peace: 3, retreat: 3, lowRisk: 3,
+              cycleKm: null, cycleAdj: 0, driveKm: null, famAKm: null, famBKm: null, floorArea: null, spaceEst: 3, peace: 3, retreat: 3, lowRisk: 3, potential: 3,
               district: "", marketType: "other", valueAdd: "", localFactors: "", outlook: "", outlookNote: "",
               flat: false, isolated: false, otherOff: 0, otherReason: "", viewed: false, aside: false, asideReason: "" };
   function val(id, v) { $(id).value = (v === null || v === undefined) ? "" : v; }
@@ -1480,7 +1501,7 @@ if (typeof module !== "undefined") module.exports = Logic;
     val("f-price", base.price); val("f-asking", base.asking); val("f-worklow", base.workLow); val("f-workhigh", base.workHigh);
     setMi("f-cycle", base.cycleKm); $("f-cycleadj").value = String(Math.max(-2, Math.min(0, Math.round(L.num(base.cycleAdj, 0)))));
     setMi("f-drive", base.driveKm); setMi("f-famA", base.famAKm); setMi("f-famB", base.famBKm); val("f-area", base.floorArea);
-    val("f-spaceest", L.num(base.spaceEst, 3)); val("f-peace", L.num(base.peace, 3)); val("f-retreat", L.num(base.retreat, 3)); val("f-risk", L.num(base.lowRisk, 3));
+    val("f-spaceest", L.num(base.spaceEst, 3)); val("f-peace", L.num(base.peace, 3)); val("f-retreat", L.num(base.retreat, 3)); val("f-risk", L.num(base.lowRisk, 3)); val("f-potential", L.num(base.potential, 3));
     sel.value = base.district || ""; $("f-mtype").value = base.marketType || "other"; $("f-outlook").value = base.outlook || "";
     if ($("f-outlook").value !== (base.outlook || "")) { $("f-outlook").appendChild(h("option", { text: base.outlook })); $("f-outlook").value = base.outlook; }
     val("f-outlooknote", base.outlookNote); val("f-valueadd", base.valueAdd); val("f-local", base.localFactors);
@@ -1502,7 +1523,7 @@ if (typeof module !== "undefined") module.exports = Logic;
     d.cycleKm = getMi("f-cycle"); d.cycleAdj = Number($("f-cycleadj").value) || 0; d.driveKm = getMi("f-drive");
     d.famAKm = getMi("f-famA"); d.famBKm = getMi("f-famB");
     d.floorArea = numOrNull("f-area"); if (!(d.floorArea > 0)) d.floorArea = null;
-    d.spaceEst = Number($("f-spaceest").value); d.peace = Number($("f-peace").value); d.retreat = Number($("f-retreat").value); d.lowRisk = Number($("f-risk").value);
+    d.spaceEst = Number($("f-spaceest").value); d.peace = Number($("f-peace").value); d.retreat = Number($("f-retreat").value); d.lowRisk = Number($("f-risk").value); d.potential = Number($("f-potential").value);
     d.district = $("f-district").value; d.marketType = $("f-mtype").value; d.outlook = $("f-outlook").value; d.outlookNote = $("f-outlooknote").value.trim();
     d.valueAdd = $("f-valueadd").value.trim(); d.localFactors = $("f-local").value.trim();
     d.flat = $("f-flat").checked; d.isolated = $("f-isolated").checked; d.otherOff = Math.max(0, numOrNull("f-otheroff") || 0); d.otherReason = $("f-otherreason").value.trim();
@@ -1540,7 +1561,7 @@ if (typeof module !== "undefined") module.exports = Logic;
                          ["District median per m²", money(m.median)],
                          ["Against the median", m.premium === null ? "–" : pct(Math.abs(m.premium)) + (m.premium >= 0 ? " above" : " below")],
                          ["District prices, yearly", chg(m.change)], ["This type of home, yearly", chg(m.typeChange)]]);
-    [["peace", "f-peace"], ["retreat", "f-retreat"], ["risk", "f-risk"]].forEach(function (p) {
+    [["peace", "f-peace"], ["retreat", "f-retreat"], ["risk", "f-risk"], ["potential", "f-potential"]].forEach(function (p) {
       var v = Number($(p[1]).value); $("o-" + p[0]).textContent = trimNum(v); $("g-" + p[0]).textContent = guideText(p[0], v);
     });
     var se = Number($("f-spaceest").value), sc = s.scales.space;
@@ -1592,7 +1613,7 @@ if (typeof module !== "undefined") module.exports = Logic;
       var v = L.num(s.weights[k], 0);
       box.appendChild(h("div", { class: "field" },
         h("div", { class: "rangehead" }, h("label", { for: "s-w-" + k, text: LABEL[k] }), h("output", { id: "s-wo-" + k, for: "s-w-" + k })),
-        h("input", { type: "range", id: "s-w-" + k, min: "0", max: String(Math.max(40, Math.ceil(v / 10) * 10)), step: "2.5", value: String(v) }),
+        h("input", { type: "range", id: "s-w-" + k, min: "0", max: String(Math.max(40, Math.ceil(v / 10) * 10)), step: "0.5", value: String(v) }),
         h("span", { class: "hint", id: "s-wh-" + k })));
     });
     ST.forEach(function (r) { val(r[0], s[r[1]][r[2]]); });
@@ -1749,7 +1770,7 @@ if (typeof module !== "undefined") module.exports = Logic;
       if (!db) { state.status = "nodb"; render(); return; }
       state.db = db; state.status = "ready";
       var dead = function () { $("banner").hidden = false; $("banner").textContent = "Lost the connection to your shortlist. Reload the page to pick it up again."; };
-      db.doc("settings/main").onSnapshot(function (snap) { state.settings = L.merge(L.DEFAULTS, snap.exists ? snap.data() : {}); render(); }, dead);
+      db.doc("settings/main").onSnapshot(function (snap) { state.settings = L.merge(L.DEFAULTS, L.upgrade(snap.exists ? snap.data() : {})); render(); }, dead);
       db.doc("plan/main").onSnapshot(function (snap) {
         var p = snap.exists ? (snap.data() || {}) : {};
         state.plan = { steps: Array.isArray(p.steps) ? p.steps : [], reminders: typeof p.reminders === "string" ? p.reminders : "" }; render();

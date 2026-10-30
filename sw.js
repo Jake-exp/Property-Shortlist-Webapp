@@ -1,5 +1,5 @@
 /* Lets the app open with no signal, or if the site is ever taken down. The page is fetched fresh when it can be, so updates arrive on their own. */
-const CACHE = "shortlist-v5";
+const CACHE = "shortlist-v6";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", (e) => {
